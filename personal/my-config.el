@@ -8,4 +8,9 @@
 (unless (server-running-p)
   (server-start))
 
+
+;; key bindg emacs command
+(global-set-key (kbd "C-i") 'execute-extended-command)
+
+
 (provide 'my-config)
