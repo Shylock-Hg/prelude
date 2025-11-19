@@ -32,3 +32,6 @@
   ;; A global mode that compiles .el files before they are loaded
   ;; using `load' or `require'.
   (compile-angel-on-load-mode 1))
+
+;; preset for evil
+(setq evil-want-keybinding nil)
