@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'prelude-packages)
+
 (prelude-require-package 'copilot)
 
 ;; M-x copilot-install-server
