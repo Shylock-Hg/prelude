@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'prelude-packages)
+
 (prelude-require-packages '(treemacs-evil
                             treemacs-icons-dired treemacs-persp treemacs-projectile))
 

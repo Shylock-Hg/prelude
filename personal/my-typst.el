@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'prelude-packages)
+
 (prelude-require-package 'typst-ts-mode)
 
 (require 'my-eglot)

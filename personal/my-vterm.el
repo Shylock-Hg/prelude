@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'prelude-packages)
+
 (prelude-require-package 'vterm)
 
 (defvar my-vterm-toggle-key (kbd "C-`") "My keybinding of vterm-toggle")
