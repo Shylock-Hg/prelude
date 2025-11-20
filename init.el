@@ -93,6 +93,7 @@ by Prelude.")
 (add-to-list 'load-path prelude-core-dir)
 (add-to-list 'load-path prelude-modules-dir)
 (add-to-list 'load-path prelude-vendor-dir)
+(add-to-list 'load-path prelude-personal-dir)
 (prelude-add-subfolders-to-load-path prelude-vendor-dir)
 
 ;; reduce the frequency of garbage collection by making it happen on
@@ -147,12 +148,13 @@ by Prelude.")
 ;; config changes made through the customize UI will be stored here
 (setq custom-file (expand-file-name "custom.el" prelude-personal-dir))
 
+;; my-modules.el
+(setq my-modules-file (expand-file-name "my-modules.el" prelude-personal-dir))
+
 ;; load the personal settings (this includes `custom-file')
 (when (file-exists-p prelude-personal-dir)
   (message "[Prelude] Loading personal configuration files in %s..." prelude-personal-dir)
-  (mapc 'load (delete
-               prelude-modules-file
-               (directory-files prelude-personal-dir 't "^[^#\.].*\\.el$"))))
+  (load my-modules-file))
 
 (message "[Prelude] Prelude is ready to do thy bidding, Master %s!" prelude-user)
 
