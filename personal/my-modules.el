@@ -9,3 +9,4 @@
 (require 'my-treemacs)
 (require 'my-typst)
 (require 'my-vterm)
+(require 'my-lsp-rust)
