@@ -3,7 +3,13 @@
 (require 'prelude-packages)
 
 (prelude-require-packages '(treemacs treemacs-evil
-                            treemacs-icons-dired treemacs-persp treemacs-projectile))
+                            treemacs-persp treemacs-projectile))
+
+(require 'nerd-icons)
+(use-package treemacs-nerd-icons
+  :ensure t
+  :config
+  (treemacs-nerd-icons-config))
 
 ;; Enable all follow modes (so Treemacs always shows current file/project)
 (setq-default treemacs-follow-mode t
