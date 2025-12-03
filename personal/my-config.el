@@ -10,7 +10,7 @@
 
 
 ;; key bindg emacs command
-(global-set-key (kbd "C-i") 'execute-extended-command)
+(global-set-key (kbd "C-,") 'execute-extended-command)
 
 (with-eval-after-load 'company
   (setq company-tooltip-flip-when-above nil)
