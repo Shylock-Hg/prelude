@@ -14,11 +14,12 @@
           (lambda ()
             (local-set-key my-vterm-toggle-key #'vterm-toggle)))   ; ← replace with whatever you want
 
-;;(setq vterm-toggle-scope 'bottom)
 (use-package vterm-toggle
-  :ensure t
-  :custom
-  (vterm-toggle-scope 'bottom)
-  )
+  :ensure t  ; Install if not present (requires use-package)
+  :config
+  (setq vterm-toggle-cd-auto-create-buffer nil)  ; Reuse existing vterm even if no prompt found
+  (setq vterm-toggle-use-dedicated-buffer nil)   ; Avoid dedicated buffers; share one globally
+  (setq vterm-toggle-scope 'global)              ; Force global scope to reuse across projects
+  :bind (my-vterm-toggle-key . vterm-toggle))  ; Example keybinding
 
 (provide 'my-vterm)
