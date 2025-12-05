@@ -1,7 +1,9 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'straight)
+
 (use-package nerd-icons-dired
-  :ensure t
+  :straight t
   :hook
   (dired-mode . nerd-icons-dired-mode))
 

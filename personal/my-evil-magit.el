@@ -1,9 +1,12 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'straight)
+
+;; don't enable :ensure when use straight.el
 (use-package evil-collection
+  :straight t
   :after evil
-  :ensure t
   :config
   (evil-collection-init))
 
-(provide 'my-evil-magit) 
+(provide 'my-evil-magit)

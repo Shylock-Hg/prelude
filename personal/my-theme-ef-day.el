@@ -1,7 +1,9 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'straight)
+
 (use-package ef-themes
-  :ensure t
+  :straight t
   :init
   ;; This makes the Modus commands listed below consider only the Ef
   ;; themes.  For an alternative that includes Modus and all

@@ -1,13 +1,16 @@
 ;;; -*- lexical-binding: t -*-
 
 (require 'prelude-packages)
+(require 'straight)
 
 (prelude-require-packages '(treemacs treemacs-evil
                             treemacs-persp treemacs-projectile))
 
-(require 'nerd-icons)
+(use-package nerd-icons
+  :straight t
+)
 (use-package treemacs-nerd-icons
-  :ensure t
+  :straight t
   :config
   (treemacs-nerd-icons-config))
 

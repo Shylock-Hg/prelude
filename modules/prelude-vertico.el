@@ -30,11 +30,11 @@
 ;; Boston, MA 02110-1301, USA.
 
 ;;; Code:
-(require 'use-package)
+(require 'straight)
 
 ;; Enable vertico
 (use-package vertico
-  :ensure t
+  :straight t
   :init
   (vertico-mode)
 
@@ -53,6 +53,7 @@
 
 ;; A few more useful configurations for Vertico
 (use-package emacs
+  :straight t
   :init
   ;; Add prompt indicator to `completing-read-multiple'.
   ;; We display [CRM<separator>], e.g., [CRM,] if the separator is a comma.
@@ -80,7 +81,7 @@
 
 ;; use the `orderless' completion style.
 (use-package orderless
-  :ensure t
+  :straight t
   :init
   ;; Configure a custom style dispatcher (see the Consult wiki)
   ;; (setq orderless-style-dispatchers '(+orderless-dispatch)
@@ -90,7 +91,7 @@
         completion-category-overrides '((file (styles partial-completion)))))
 
 (use-package consult
-  :ensure t
+  :straight t
   :bind (
          ;; C-x bindings (ctl-x-map)
          ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command

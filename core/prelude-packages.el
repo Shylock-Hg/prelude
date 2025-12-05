@@ -32,7 +32,8 @@
 
 ;;; Code:
 (require 'cl-lib)
-(require 'package)
+;;(require 'package)
+(require 'straight)
 
 ;;;; Package setup and additional utility functions
 
@@ -53,15 +54,17 @@
 (when prelude-override-package-user-dir
   (setq package-user-dir (expand-file-name "elpa" prelude-dir)))
 
-(unless package--initialized
-    (package-initialize))
+;;(unless package--initialized
+;;    (package-initialize))
 
 ;; install & enable use-package
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
+;;(unless (package-installed-p 'use-package)
+  ;;(package-install 'use-package))
 
-(require 'use-package)
-(setq use-package-verbose t)
+;;(require 'use-package)
+;;(setq use-package-verbose t)
+
+(require 'straight)
 
 (defvar prelude-packages
   '(ace-window
@@ -70,7 +73,7 @@
     anzu
     browse-kill-ring
     crux
-    discover-my-major
+;;    discover-my-major ;; the error to fetch git repo by straight.el
     diff-hl
     diminish
     easy-kill
@@ -108,7 +111,7 @@
   (unless (memq package prelude-packages)
     (add-to-list 'prelude-packages package))
   (unless (package-installed-p package)
-    (package-install package)))
+    (straight-use-package package)))
 
 (defun prelude-require-packages (packages)
   "Ensure PACKAGES are installed.
