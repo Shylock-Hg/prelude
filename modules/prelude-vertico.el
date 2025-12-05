@@ -31,6 +31,9 @@
 
 ;;; Code:
 (require 'use-package)
+(require 'prelude-packages)
+
+(prelude-require-package 'vertico)
 
 ;; Enable vertico
 (use-package vertico
@@ -78,6 +81,8 @@
   ;; Enable recursive minibuffers
   (setq enable-recursive-minibuffers t))
 
+(prelude-require-package 'orderless)
+
 ;; use the `orderless' completion style.
 (use-package orderless
   :ensure t
@@ -88,6 +93,8 @@
   (setq completion-styles '(orderless basic)
         completion-category-defaults nil
         completion-category-overrides '((file (styles partial-completion)))))
+
+(prelude-require-package 'consult)        
 
 (use-package consult
   :ensure t

@@ -3,13 +3,16 @@
 (require 'prelude-packages)
 
 (prelude-require-packages '(treemacs treemacs-evil
-                            treemacs-persp treemacs-projectile))
+                            treemacs-persp treemacs-projectile nerd-icons treemacs-nerd-icons))
 
 (use-package nerd-icons
-  :ensure t)
-(require 'nerd-icons)
-(use-package treemacs-nerd-icons
   :ensure t
+  :demand t
+  )
+(use-package treemacs-nerd-icons
+  :after nerd-icons
+  :ensure t
+  :demand t
   :config
   (treemacs-nerd-icons-config))
 
