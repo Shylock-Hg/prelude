@@ -5,6 +5,8 @@
 (prelude-require-packages '(treemacs treemacs-evil
                             treemacs-persp treemacs-projectile))
 
+(use-package nerd-icons
+  :ensure t)
 (require 'nerd-icons)
 (use-package treemacs-nerd-icons
   :ensure t
