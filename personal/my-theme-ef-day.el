@@ -1,7 +1,12 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'prelude-packages)
+
+(prelude-require-package 'ef-themes)
+
 (use-package ef-themes
   :ensure t
+  :demand t
   :init
   ;; This makes the Modus commands listed below consider only the Ef
   ;; themes.  For an alternative that includes Modus and all
