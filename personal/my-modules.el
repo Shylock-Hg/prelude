@@ -1,15 +1,19 @@
 ;;; -*- lexical-binding: t -*-
 
+;; custom config
 (require 'custom)
-
 (require 'my-config)
-(require 'my-nerd-icons-dired)
-(require 'my-theme-ef-day)
-(require 'my-eglot)
+
+;; layout related
 (require 'my-evil-magit)
-(require 'my-github-copilot)
-(require 'my-lsp-clangd)
-(require 'my-typst)
 (require 'my-vterm)
+(require 'my-nerd-icons-dired)
 (require 'my-treemacs)
+(require 'my-theme-ef-day)
+
+;; program related
+(require 'my-eglot)
+(require 'my-lsp-clangd)
 (require 'my-lsp-rust)
+(require 'my-typst)
+(require 'my-github-copilot)
