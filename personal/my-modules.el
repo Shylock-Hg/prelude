@@ -17,3 +17,4 @@
 (require 'my-lsp-rust)
 (require 'my-typst)
 (require 'my-github-copilot)
+(require 'my-gptel)
