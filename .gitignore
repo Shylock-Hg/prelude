@@ -35,4 +35,4 @@ eln-cache/
 straight/
 
 *.so
-build/
+elpa/vterm-*/build/
