@@ -1,9 +1,9 @@
 ;;; -*- lexical-binding: t -*-
 
 ;; set mirrors
-(setq package-archives '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
-                         ("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
-                         ("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")))
+;;(setq package-archives '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
+                         ;;("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
+                         ;;("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")))
 ;; ustc
 ;;(setq package-archives '(("gnu" . "https://mirrors.ustc.edu.cn/elpa/gnu/")
                          ;;("melpa" . "https://mirrors.ustc.edu.cn/elpa/melpa/")
@@ -11,7 +11,7 @@
 ;;(setq package-archives '(("gnu"    . "https://mirrors.zju.edu.cn/elpa/gnu/")
                          ;;("nongnu" . "https://mirrors.zju.edu.cn/elpa/nongnu/")
                          ;;("melpa"  . "https://mirrors.zju.edu.cn/elpa/melpa/")))
-
+(setq package-archives nil)
 (package-initialize) ;; You might already have this line
 
 

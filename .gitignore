@@ -4,8 +4,8 @@ auto-save-list
 recentf
 savehist
 saveplace
-eshell
-elpa
+#eshell
+#elpa
 el-get
 semanticdb
 url
@@ -33,3 +33,6 @@ var/
 gotools/
 eln-cache/
 straight/
+
+*.so
+build/
