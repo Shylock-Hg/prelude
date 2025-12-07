@@ -11,12 +11,12 @@
 ;; Enable all follow modes (so Treemacs always shows current file/project)
 (use-package treemacs
   :ensure t
+  :config
+  (setq treemacs-follow-mode t
+        treemacs-tag-follow-mode t
+        treemacs-project-follow-mode t
+        treemacs-width 25)
 )
-
-(setq treemacs-follow-mode t
-      treemacs-tag-follow-mode t
-      treemacs-project-follow-mode t
-      treemacs-width 25)
 
 (use-package nerd-icons
   :ensure t
