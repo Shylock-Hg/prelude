@@ -2,13 +2,18 @@
 
 (require 'treesit)
 
+(defvar my-init-dir (file-name-directory user-init-file))
+
+(defvar my-tree-sitter-typst-src (expand-file-name "vendor/uben0/tree-sitter-typst" my-init-dir))
+(defvar my-tree-sitter-cmake-src (expand-file-name "vendor/uyha/tree-sitter-cmake" my-init-dir))
+
 (with-eval-after-load 'treesit
   (add-to-list 'treesit-language-source-alist
-               '(typst "https://github.com/uben0/tree-sitter-typst"
-                       "master"))
+               `(typst ,my-tree-sitter-typst-src
+                       ))
   (add-to-list 'treesit-language-source-alist
-               '(cmake "https://github.com/uyha/tree-sitter-cmake"
-                       "master"))
+               `(cmake ,my-tree-sitter-cmake-src
+                       ))
   )
 
 (provide 'my-tree-sitter)
