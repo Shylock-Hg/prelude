@@ -4,6 +4,9 @@
 (require 'custom)
 (require 'my-config)
 
+;; misc
+(require 'my-scratch)
+
 ;; layout related
 (require 'my-evil-magit)
 (require 'my-vterm)
