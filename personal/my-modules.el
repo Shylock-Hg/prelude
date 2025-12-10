@@ -17,7 +17,7 @@
 ;; program related
 (require 'my-eglot)
 (require 'my-lsp-clangd)
-(require 'my-lsp-rust)
+(require 'my-rust)
 (require 'my-typst)
 (require 'my-cmake)
 (require 'my-github-copilot)
