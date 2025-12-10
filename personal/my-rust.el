@@ -57,4 +57,4 @@
 (add-hook 'eglot-managed-mode-hook 'eglot-inlay-hints-mode)
 (add-hook 'eglot-managed-mode-hook 'flymake-mode)
 
-(provide 'my-lsp-rust)
+(provide 'my-rust)
