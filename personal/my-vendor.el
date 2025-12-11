@@ -1,0 +1,33 @@
+;;; -*- lexical-binding: t -*-
+
+(defvar my-init-dir (file-name-directory user-init-file))
+(defvar my-vendor-dir (expand-file-name "vendor" my-init-dir))
+
+(defun my-vendor-dest (user repo)
+  (expand-file-name (concat user "/" repo) my-vendor-dir)
+  )
+
+(defun my-vendor-install-git (host user repo)
+  (if (not (stringp host))
+      (error "Host must be string")
+      )
+  (if (not (stringp user))
+      (error "User must be string")
+      )
+  (if (not (stringp repo))
+      (error "Repo must be string")
+      )
+  (let ((url (concat "https://" host "/" user "/" repo ".git"))
+        (dest (my-vendor-dest user repo)))
+       (when (not (file-directory-p dest))
+         (let ((ec (call-process "git" nil nil nil "clone" "--depth=1" url dest)))
+            (if (zerop ec)
+                (message "Git clone vendor repo successed.")
+                (error "Git clone vendor repo failed.")
+                )
+           )
+          )
+    )
+  )
+
+(provide 'my-vendor)
