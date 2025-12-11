@@ -1,0 +1,8 @@
+*.so
+*.dylib
+*.dll
+*.o
+*.~undo-tree~
+TAGS
+/worktrees/
+reader-autoloads.el
