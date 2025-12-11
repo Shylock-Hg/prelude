@@ -22,3 +22,6 @@
 (require 'my-cmake)
 (require 'my-github-copilot)
 (require 'my-gptel)
+
+;; tools
+(require 'my-reader)
