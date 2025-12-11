@@ -22,8 +22,10 @@
        (when (not (file-directory-p dest))
          (let ((ec (call-process "git" nil nil nil "clone" "--depth=1" url dest)))
             (if (zerop ec)
-                (message "Git clone vendor repo successed.")
-                (error "Git clone vendor repo failed.")
+                (progn (message "Git clone vendor repo successed.")
+                  t
+                )
+                (progn (error "Git clone vendor repo failed."))
                 )
            )
           )
