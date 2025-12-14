@@ -13,6 +13,7 @@
 (require 'my-nerd-icons-dired)
 (require 'my-treemacs)
 (require 'my-theme-ef-day)
+(require 'my-modeline)
 
 ;; program related
 (require 'my-eglot)
