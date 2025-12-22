@@ -15,6 +15,8 @@
 (require 'my-theme-ef-day)
 (require 'my-modeline)
 
+(require 'my-git)
+
 ;; program related
 (require 'my-eglot)
 (require 'my-lsp-clangd)

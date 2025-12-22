@@ -36,3 +36,4 @@ straight/
 
 *.so
 elpa/vterm-*/build/
+*.sqlite
