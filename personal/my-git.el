@@ -8,7 +8,9 @@
   :custom
   (forge-add-default-bindings t)
   :config
-  (add-to-list 'forge-alist '("work-wsl:9000" "work-wsl:9000/api/v4" "work-wsl:9000"
+  ;;(add-to-list 'forge-alist '("work-wsl:9000" "work-wsl:9000/api/v4" "work-wsl:9000"
+                              ;;forge-gitlab-repository))
+  (add-to-list 'forge-alist '("work-wsl:7070" "work-wsl:9000/api/v4" "work-wsl:9000"
                               forge-gitlab-repository))
   (add-to-list 'ghub-insecure-hosts "work-wsl:9000/api/v4")
   (add-to-list 'ghub-insecure-hosts "work-wsl:9000")
