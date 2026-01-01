@@ -15,14 +15,22 @@
   (setq vterm-toggle-scope nil)              ; Force global scope to reuse across projects
   )
 
-(defvar my-vterm-toggle-key (kbd "C-`") "My keybinding of vterm-toggle")
-(global-set-key my-vterm-toggle-key 'vterm-toggle)
+(defvar my-vterm-toggle-key "C-t" "My keybinding of vterm-toggle")
 ;; Let EVERY key go to the shell (disable all normal vterm stealing)
 (advice-add 'vterm--exclude-keys :override #'ignore)
 (setq vterm-keymap-exceptions nil)   ; ← this is the key line!
-;; Only steal C-` for yourself
+;; Only steal key for yourself
 (add-hook 'vterm-mode-hook
           (lambda ()
-            (local-set-key my-vterm-toggle-key #'vterm-toggle)))   ; ← replace with whatever you want
+            (keymap-local-unset my-vterm-toggle-key)
+            (keymap-local-set my-vterm-toggle-key #'vterm-toggle)))   ; ← replace with whatever you want
+
+(with-eval-after-load 'evil
+  (define-key evil-normal-state-map (kbd my-vterm-toggle-key) #'vterm-toggle)
+          )
+(with-eval-after-load 'elisp-slime-nav
+  (define-key (lookup-key elisp-slime-nav-mode-map [normal-state])
+                  (kbd my-vterm-toggle-key)
+                  #'vterm-toggle))
 
 (provide 'my-vterm)
