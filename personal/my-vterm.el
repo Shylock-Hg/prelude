@@ -32,5 +32,9 @@
   (define-key (lookup-key elisp-slime-nav-mode-map [normal-state])
                   (kbd my-vterm-toggle-key)
                   #'vterm-toggle))
+(with-eval-after-load 'eglot
+  (define-key (lookup-key eglot-mode-map [normal-state])
+                  (kbd my-vterm-toggle-key)
+                  #'vterm-toggle))
 
 (provide 'my-vterm)
