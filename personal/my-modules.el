@@ -23,6 +23,7 @@
 (require 'my-rust)
 (require 'my-typst)
 (require 'my-cmake)
+(require 'my-ocaml)
 (require 'my-github-copilot)
 (require 'my-gptel)
 
