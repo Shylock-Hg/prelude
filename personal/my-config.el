@@ -9,8 +9,13 @@
   (server-start))
 
 
-;; key bindg emacs command
-(global-set-key (kbd "C-,") 'execute-extended-command)
+;; key bind emacs command
+(defvar my-extended-command-key "C-,"
+  "Keybinding for `execute-extended-command'.")
+(global-set-key (kbd my-extended-command-key) 'execute-extended-command)
+(with-eval-after-load 'flyspell
+  (define-key flyspell-mode-map (kbd my-extended-command-key) nil)
+  )
 
 (with-eval-after-load 'company
   (setq company-tooltip-flip-when-above nil)
