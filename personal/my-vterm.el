@@ -36,5 +36,9 @@
   (define-key (lookup-key eglot-mode-map [normal-state])
                   (kbd my-vterm-toggle-key)
                   #'vterm-toggle))
+(with-eval-after-load 'anaconda-mode
+  (define-key (lookup-key anaconda-mode-map [normal-state])
+                  (kbd my-vterm-toggle-key)
+                  #'vterm-toggle))
 
 (provide 'my-vterm)
