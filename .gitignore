@@ -38,3 +38,4 @@ straight/
 elpa/vterm-*/build/
 *.sqlite
 *.o
+/anaconda-mode
