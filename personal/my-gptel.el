@@ -13,7 +13,7 @@
 
 (setq gptel-api-key #'gptel-api-key-from-auth-source)
 (setq
-  gptel-model 'gemini-2.5-pro-exp-03-25
+  gptel-model 'gemini-2.5-flash
   gptel-backend (gptel-make-gemini "Gemini"
                   :key 'gptel-api-key-from-auth-source
                   :stream t))
