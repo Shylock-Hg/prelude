@@ -17,6 +17,8 @@
 
 (require 'my-git)
 
+(require 'my-multiple-cursors)
+
 ;; program related
 (require 'my-eglot)
 (require 'my-lsp-clangd)
