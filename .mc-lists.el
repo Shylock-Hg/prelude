@@ -3,17 +3,18 @@
 
 (setq mc/cmds-to-run-for-all
       '(
+        evil-append
         evil-append-line
         evil-backward-char
         evil-delete-backward-char-and-join
+        evil-delete-char
         evil-force-normal-state
         evil-forward-char
         evil-insert
+        evil-insert-line
         evil-next-line
         evil-normal-state
         evil-previous-line
         evil-record-macro
         evil-undo
-        evil-append
-        evil-insert-line
         ))
