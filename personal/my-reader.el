@@ -21,4 +21,10 @@
 (require 'reader)
 (require 'reader-autoloads)
 
+(with-eval-after-load 'reader
+  (add-hook 'reader-mode-hook (lambda ()
+            (reader-fit-to-width)
+            ) 10)
+  )
+
 (provide 'my-reader)
