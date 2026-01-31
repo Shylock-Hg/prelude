@@ -35,7 +35,7 @@ eln-cache/
 straight/
 
 *.so
-elpa/vterm-*/build/
+/elpa/
 *.sqlite
 *.o
 /anaconda-mode
