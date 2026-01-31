@@ -42,4 +42,5 @@
   (compile-angel-on-load-mode 1))
 
 ;; preset for evil
+;; require by evil-collection
 (setq evil-want-keybinding nil)
