@@ -28,6 +28,7 @@
 (require 'my-ocaml)
 (require 'my-github-copilot)
 (require 'my-gptel)
+(require 'my-agent-shell)
 
 ;; tools
 (require 'my-reader)
