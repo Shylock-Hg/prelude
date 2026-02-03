@@ -19,6 +19,9 @@
   ;;gptel-backend (gptel-make-gemini "Gemini"
                   ;;:key 'gptel-api-key-from-auth-source
                   ;;:stream t))
+(gptel-make-gemini "Gemini"
+                  :key 'gptel-api-key-from-auth-source
+                  :stream t)
 
 (setq
   gptel-model 'glm-4-flash
@@ -37,5 +40,8 @@
       ;;(gptel-make-xai "xAI"               ; Any name you want
         ;;:key 'gptel-api-key-from-auth-source
         ;;:stream t))
+(gptel-make-xai "xAI"               ; Any name you want
+        :key 'gptel-api-key-from-auth-source
+        :stream t)
 
 (provide 'my-gptel)
