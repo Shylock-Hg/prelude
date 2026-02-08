@@ -39,3 +39,4 @@ straight/
 *.sqlite
 *.o
 /anaconda-mode
+projects
