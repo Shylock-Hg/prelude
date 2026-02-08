@@ -4,6 +4,9 @@
 (prelude-require-packages '(magit forge))
 
 (use-package magit :ensure t)
+(with-eval-after-load 'magit
+  (setq magit-diff-refine-hunk 'all)
+  )
 (use-package forge :ensure t :after magit
   :custom
   (forge-add-default-bindings t)
