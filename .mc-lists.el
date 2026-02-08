@@ -3,6 +3,8 @@
 
 (setq mc/cmds-to-run-for-all
       '(
+        c-electric-semi&comma
+        c-electric-slash
         evil-append
         evil-append-line
         evil-backward-char
