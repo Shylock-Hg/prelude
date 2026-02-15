@@ -1,9 +1,17 @@
 ;;; -*- lexical-binding: t -*-
 
+
 ;; set mirrors
-(setq package-archives '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
-                         ("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
-                         ("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")))
+;; local
+(setq package-archives
+      `(("melpa"  . "~/.elpa-mirror/melpa/")
+        ("nongnu" . "~/.elpa-mirror/nongnu/")
+        ("org"    . "~/.elpa-mirror/org/")
+        ("gnu"    . "~/.elpa-mirror/gnu/")))
+
+;;(setq package-archives '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
+                         ;;("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
+                         ;;("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")))
 ;; ustc
 ;;(setq package-archives '(("gnu" . "https://mirrors.ustc.edu.cn/elpa/gnu/")
                          ;;("melpa" . "https://mirrors.ustc.edu.cn/elpa/melpa/")
