@@ -41,8 +41,7 @@
 (if (eq system-type 'windows-nt)
     (add-to-list 'package-archives
                  '("melpa" . "http://melpa.org/packages/") t)
-  (add-to-list 'package-archives
-               '("melpa" . "https://melpa.org/packages/") t))
+  ())
 
 ;; load the pinned packages
 (let ((prelude-pinned-packages-file (expand-file-name "prelude-pinned-packages.el" prelude-dir)))
