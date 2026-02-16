@@ -66,4 +66,8 @@
 (add-hook 'c-mode-common-hook (lambda ()
                                 (run-hooks 'my-c-mode-common-hook)) 100)
 
+(with-eval-after-load 'my-vendor
+  (write-region emacs-version nil (expand-file-name  ".emacsversion" my-init-dir))
+  )
+
 (provide 'my-config)
