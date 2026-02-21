@@ -5,6 +5,7 @@
 (prelude-require-packages '(vterm vterm-toggle))
 
 (require 'vterm)
+(setq vterm-max-scrollback 10000)
 (use-package vterm-toggle
   :ensure t  ; Install if not present (requires use-package)
   :demand t
