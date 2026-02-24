@@ -1,3 +1,5 @@
+;;; -*- lexical-binding: t -*-
+
 (setq user-full-name "Shylock Hg")
 (setq user-mail-address "tcath2s@icloud.com")
 
@@ -15,5 +17,10 @@
 ;;(setq settpmail-stream-type 'starttls)  ; iCloud use STARTTLS
 (setq send-mail-function 'smtpmail-send-it)
 (setq message-send-mail-function 'smtpmail-send-it)
+
+(defalias 'email-new 'gnus-msg-mail
+  )
+(defalias 'email-attach-file 'mml-attach-file)
+(defalias 'email-send 'message-send-and-exit)
 
 (provide 'my-gnus)
