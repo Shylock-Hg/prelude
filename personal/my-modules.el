@@ -32,3 +32,4 @@
 
 ;; tools
 (require 'my-reader)
+(require 'my-gnus)
