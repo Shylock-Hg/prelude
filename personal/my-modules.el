@@ -12,7 +12,7 @@
 (require 'my-vterm)
 (require 'my-nerd-icons-dired)
 (require 'my-treemacs)
-(require 'my-theme-ef-day)
+;;(require 'my-theme-ef-day)
 (require 'my-modeline)
 
 (require 'my-git)

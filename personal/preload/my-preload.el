@@ -52,3 +52,7 @@
 ;; preset for evil
 ;; require by evil-collection
 (setq evil-want-keybinding nil)
+
+(require 'my-theme-ef-day)
+
+(setq prelude-theme 'ef-melissa-light)

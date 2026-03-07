@@ -1,8 +1,8 @@
 ;;; -*- lexical-binding: t -*-
 
-(require 'prelude-packages)
+;;(require 'prelude-packages)
 
-(prelude-require-package 'ef-themes)
+;;(prelude-require-package 'ef-themes)
 
 (use-package ef-themes
   :ensure t
