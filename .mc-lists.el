@@ -19,4 +19,9 @@
         evil-previous-line
         evil-record-macro
         evil-undo
+        sp-delete-char
+        ))
+
+(setq mc/cmds-to-run-once
+      '(
         ))
