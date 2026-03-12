@@ -29,6 +29,7 @@
 (require 'my-github-copilot)
 (require 'my-gptel)
 (require 'my-agent-shell)
+(require 'my-gptel-agent)
 
 ;; tools
 (require 'my-reader)
