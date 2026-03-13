@@ -9,7 +9,7 @@
 
 (when (eq my-reader-fresh-installed t)
   (message "Compiling emacs-reader...")
-  (let ((ec (call-process "make" nil nil nil "-j8" "-C" my-reader-dir "all" "autoloads")) )
+  (let ((ec (call-process "make" nil nil nil "-j8" "-C" my-reader-dir "all")) )
     (when (not  (zerop ec))
       (error "Compile emacs reader failed.")
       )
