@@ -40,3 +40,4 @@ straight/
 *.o
 /anaconda-mode
 projects
+vendor/*

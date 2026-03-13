@@ -30,6 +30,7 @@
 (require 'my-gptel)
 (require 'my-agent-shell)
 (require 'my-gptel-agent)
+(require 'my-gptel-autocomplete)
 
 ;; tools
 (require 'my-reader)
