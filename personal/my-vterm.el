@@ -2,7 +2,7 @@
 
 (require 'prelude-packages)
 
-(prelude-require-packages '(vterm vterm-toggle))
+(prelude-require-packages '(vterm vterm-toggle multi-vterm))
 
 (require 'vterm)
 (setq vterm-max-scrollback 10000)
@@ -41,5 +41,14 @@
   (define-key (lookup-key anaconda-mode-map [normal-state])
                   (kbd my-vterm-toggle-key)
                   #'vterm-toggle))
+
+;; multivterm
+(use-package multi-vterm
+        :ensure t
+	:config
+	(evil-define-key 'normal vterm-mode-map (kbd ",c")       #'multi-vterm)
+	(evil-define-key 'normal vterm-mode-map (kbd ",n")       #'multi-vterm-next)
+	(evil-define-key 'normal vterm-mode-map (kbd ",p")       #'multi-vterm-prev)
+        )
 
 (provide 'my-vterm)
