@@ -60,7 +60,7 @@
     :endpoint "/compatible-mode/v1/chat/completions"
     :stream t                                 ; Enable streaming responses
     :key #'gptel-api-key-from-auth-source     ; Secure key retrieval (from .authinfo)
-    :models '("qwen3.5-plus" "qwen3-coder-plus")
+    :models '("qwen3.5-plus" "qwen3-coder-plus" "kimi-k2.5")
     ))
 
 
