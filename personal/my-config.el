@@ -70,4 +70,15 @@
   (write-region emacs-version nil (expand-file-name  ".emacsversion" my-init-dir))
   )
 
+(defun my/open-buffer-below (buffer-name)
+  "Open window below with chosen buffer"
+  (interactive "BBuffer name: ")
+  (let ((buffer (get-buffer-create buffer-name)))
+    (display-buffer
+     buffer
+     '((display-buffer-below-selected)
+       (window-height . 0.4)
+       (reusable-frames . visible)
+       (inhibit-same-window . t)))))
+
 (provide 'my-config)
