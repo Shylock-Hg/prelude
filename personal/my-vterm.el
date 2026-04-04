@@ -43,6 +43,18 @@
                   #'vterm-toggle))
 
 ;; multivterm
+(defun multi-vterm-name (name)
+  "Create a new vterm buffer named NAME and switch to it."
+  (interactive "sNew vterm name: ")
+  (let* ((vterm-buffer
+          (generate-new-buffer (multi-vterm-format-buffer-name name))))
+    (setq multi-vterm-buffer-list
+          (nconc multi-vterm-buffer-list (list vterm-buffer)))
+    (with-current-buffer vterm-buffer
+      (vterm-mode)
+      (multi-vterm-internal))
+    (switch-to-buffer vterm-buffer)))
+
 (use-package multi-vterm
         :ensure t
 	:config
