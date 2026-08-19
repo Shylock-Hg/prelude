@@ -9,12 +9,13 @@
 (treesit-install-language-grammar 'cmake)
 
 ;; OUTSIDE require to install neocmakelsp first
+(defun my/setup-neocmakelsp ()
+  "Setup neocmakelsp for cmake-ts-mode."
+  (require 'eglot)
+  (add-to-list 'eglot-server-programs '((cmake-ts-mode) . ("neocmakelsp" "stdio")))
+  (eglot-ensure))
+
 (use-package cmake-ts-mode
-  :config
-  (add-hook 'cmake-ts-mode-hook
-    (defun setup-neocmakelsp ()
-      (require 'eglot)
-      (add-to-list 'eglot-server-programs `((cmake-ts-mode) . ("neocmakelsp" "stdio")))
-      (eglot-ensure))))
+  :hook (cmake-ts-mode . my/setup-neocmakelsp))
 
 (provide 'my-cmake)
