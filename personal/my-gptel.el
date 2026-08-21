@@ -80,23 +80,35 @@
         :stream t)
 
 ;; OpenRouter offers an OpenAI compatible API
+(setq my-openrouter-backend
 (gptel-make-openai "OpenRouter"               ;Any name you want
   :host "openrouter.ai"
   :endpoint "/api/v1/chat/completions"
   :stream t
   :key 'gptel-api-key-from-auth-source
   :models '(openai/gpt-3.5-turbo
+            nvidia/nemotron-3-ultra-550b-a55b:free
             mistralai/mixtral-8x7b-instruct
             meta-llama/codellama-34b-instruct
             meta-llama/llama-3.2-3b-instruct
             codellama/codellama-70b-instruct
             google/palm-2-codechat-bison-32k
             google/gemini-pro))
+)
+
+
+;; OpenRouter offers an OpenAI compatible API
+(gptel-make-openai "Nvidia"               ;Any name you want
+  :host "integrate.api.nvidia.com"
+  :endpoint "/v1/chat/completions"
+  :stream t
+  :key 'gptel-api-key-from-auth-source
+  :models '(deepseek-ai/deepseek-v4-flash-0731))
 
 
 (setq
-  gptel-model 'qwen3.5-plus
-  gptel-backend my-aliyuncs-backend
+  gptel-model 'nvidia/nemotron-3-ultra-550b-a55b:free
+  gptel-backend my-openrouter-backend
   )
 
 (provide 'my-gptel)
