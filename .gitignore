@@ -41,3 +41,4 @@ straight/
 /anaconda-mode
 projects
 vendor/*
+*.eld

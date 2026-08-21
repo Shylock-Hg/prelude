@@ -55,6 +55,12 @@
         ("X-Msh-Version" . "1.12.0"))
     )
 
+(gptel-make-openai "Moonshot"
+  :host "api.moonshot.cn" ;; or "api.moonshot.ai" for the global site
+  :key #'gptel-api-key-from-auth-source     ; Secure key retrieval (from .authinfo)
+  :stream t ;; optionally enable streaming
+  :models '(kimi-latest kimi-k3 kimi-k2.7-code))
+
 (setq my-aliyuncs-backend (gptel-make-openai "Aliyuncs"
     :host "dashscope.aliyuncs.com"                  ; host
     :endpoint "/compatible-mode/v1/chat/completions"
@@ -72,6 +78,21 @@
 (gptel-make-xai "xAI"               ; Any name you want
         :key 'gptel-api-key-from-auth-source
         :stream t)
+
+;; OpenRouter offers an OpenAI compatible API
+(gptel-make-openai "OpenRouter"               ;Any name you want
+  :host "openrouter.ai"
+  :endpoint "/api/v1/chat/completions"
+  :stream t
+  :key 'gptel-api-key-from-auth-source
+  :models '(openai/gpt-3.5-turbo
+            mistralai/mixtral-8x7b-instruct
+            meta-llama/codellama-34b-instruct
+            meta-llama/llama-3.2-3b-instruct
+            codellama/codellama-70b-instruct
+            google/palm-2-codechat-bison-32k
+            google/gemini-pro))
+
 
 (setq
   gptel-model 'qwen3.5-plus
