@@ -16,7 +16,6 @@
           (lambda ()
             (define-key evil-insert-state-local-map
                         (kbd "C-<return>") #'gptel-accept-completion)
-            (gptel-autocomplete-mode t)
             )
           )
 
