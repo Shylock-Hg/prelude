@@ -6,4 +6,4 @@ pushd ~/.elpa-mirror/
 readonly DATE=$(git log -1 --format=%cd --date=short)
 popd
 
-tar --zst -cf elpa-mirror-$(cat ${SCRIPT_DIR}/.emacsversion)_${DATE}.tar.zst -C "$HOME" .elpa-mirror
+tar --zst -cf ~/Data/elpa-mirror-$(cat ${SCRIPT_DIR}/.emacsversion)_${DATE}.tar.zst -C "$HOME" .elpa-mirror
