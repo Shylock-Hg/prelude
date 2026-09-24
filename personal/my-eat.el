@@ -36,6 +36,23 @@
                                (derived-mode-p 'eat-mode)))
                            (buffer-list))))
 
+(defun my-eat--shell ()
+  "Return the shell program to run in a new Eat terminal.
+Older Eat releases (for example the NonGNU ELPA 0.9.4 package) do not
+define `eat-default-shell-function', so fall back to the same defaults
+Eat itself uses."
+  (cond
+   ((and (boundp 'eat-default-shell-function)
+         (functionp (symbol-value 'eat-default-shell-function)))
+    (funcall (symbol-value 'eat-default-shell-function)))
+   ((and (boundp 'eat-shell)
+         (stringp (symbol-value 'eat-shell)))
+    (symbol-value 'eat-shell))
+   (t
+    (or explicit-shell-file-name
+        (getenv "ESHELL")
+        shell-file-name))))
+
 (defun my-eat--ensure-process (buffer)
   "Start an Eat shell in BUFFER unless it already runs one."
   (with-current-buffer buffer
@@ -44,7 +61,7 @@
                  (eat-term-parameter eat-terminal 'eat--process))
       (eat-mode)
       (eat-exec buffer (buffer-name) "/usr/bin/env" nil
-                (list "sh" "-c" (funcall eat-default-shell-function))))))
+                (list "sh" "-c" (my-eat--shell))))))
 
 (defun my-eat-toggle ()
   "Toggle the default Eat terminal.

@@ -93,6 +93,31 @@
         (when (string-prefix-p eat-buffer-name (buffer-name buffer))
           (my-eat-test--kill-terminal (buffer-name buffer)))))))
 
+(ert-deftest my-eat-new-without-default-shell-function ()
+  "`my-eat-new' works with Eat releases lacking the default shell variable.
+The NonGNU ELPA 0.9.4 package does not define
+`eat-default-shell-function'."
+  (let ((eat-buffer-name "*my-eat-no-default-shell-test*")
+        (had-default (boundp 'eat-default-shell-function))
+        (value (and (boundp 'eat-default-shell-function)
+                    (symbol-value 'eat-default-shell-function)))
+        buffer)
+    (unwind-protect
+        (progn
+          (when had-default
+            (makunbound 'eat-default-shell-function))
+          (my-eat-new)
+          (setq buffer (current-buffer))
+          (should (derived-mode-p 'eat-mode))
+          (should (process-live-p (get-buffer-process buffer))))
+      (when had-default
+        (set 'eat-default-shell-function value))
+      (when (buffer-live-p buffer)
+        (let ((process (get-buffer-process buffer)))
+          (when (process-live-p process)
+            (delete-process process)))
+        (kill-buffer buffer)))))
+
 (ert-deftest my-eat-next-and-prev-cycle-sessions ()
   "`my-eat-next' and `my-eat-prev' cycle through the live sessions."
   (let ((eat-buffer-name "*my-eat-cycle-test*"))
