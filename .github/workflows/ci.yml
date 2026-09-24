@@ -9,8 +9,18 @@ jobs:
       - name: install emacs
         run: |
           if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi
+          # The default deb.debian.org archive is slow/unreachable from the
+          # runner; switch to a nearby Debian mirror before installing.
+          for f in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do
+            if [ -f "$f" ]; then
+              $SUDO sed -i \
+                -e 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' \
+                -e 's|security.debian.org|mirrors.tuna.tsinghua.edu.cn|g' \
+                "$f"
+            fi
+          done
           $SUDO apt-get update
-          $SUDO apt-get install -y emacs-nox
+          $SUDO apt-get install -y --no-install-recommends emacs-nox
       - name: put prelude in the right place
         run: |
           ln -sfn "$(pwd)" "$HOME/.emacs.d"
