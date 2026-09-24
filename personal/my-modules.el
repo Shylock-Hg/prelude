@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'my-utils)
+
 ;; custom config
 (require 'custom)
 (require 'my-config)
