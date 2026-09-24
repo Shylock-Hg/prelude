@@ -2,12 +2,23 @@
 
 
 ;; set mirrors
-;; local
-(setq package-archives
-      `(("melpa"  . "~/.elpa-mirror/melpa/")
-        ("nongnu" . "~/.elpa-mirror/nongnu/")
-        ("org"    . "~/.elpa-mirror/org/")
-        ("gnu"    . "~/.elpa-mirror/gnu/")))
+;; Prefer the local ELPA mirror when it exists (the usual setup on the
+;; personal machine); otherwise use the public Tsinghua ELPA mirror so a
+;; fresh checkout such as CI can still install packages.
+(let ((mirror (expand-file-name "~/.elpa-mirror")))
+  (if (file-directory-p mirror)
+      (setq package-archives
+            `(("melpa"  . ,(expand-file-name "melpa/" mirror))
+              ("nongnu" . ,(expand-file-name "nongnu/" mirror))
+              ("org"    . ,(expand-file-name "org/" mirror))
+              ("gnu"    . ,(expand-file-name "gnu/" mirror))))
+    (setq package-archives
+          '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
+            ("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
+            ("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/"))
+          ;; The local mirror ships the MELPA signing key; a fresh checkout
+          ;; does not, so do not reject the downloaded packages.
+          package-check-signature nil)))
 
 ;;(setq package-archives '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
                          ;;("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")

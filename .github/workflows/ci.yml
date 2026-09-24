@@ -19,8 +19,12 @@ jobs:
                 "$f"
             fi
           done
+          # bookworm only ships Emacs 28.2; the configuration needs 29+ (the
+          # built-in `use-package`), so take Emacs 30 from trixie.
+          echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] https://mirrors.tuna.tsinghua.edu.cn/debian trixie main" \
+            | $SUDO tee /etc/apt/sources.list.d/trixie.list >/dev/null
           $SUDO apt-get update
-          $SUDO apt-get install -y --no-install-recommends emacs-nox
+          $SUDO apt-get install -y --no-install-recommends -t trixie emacs-nox
       - name: put prelude in the right place
         run: |
           ln -sfn "$(pwd)" "$HOME/.emacs.d"

@@ -46,6 +46,7 @@
   ;;:ensure t
   ;;:config (treemacs-set-scope-type 'Perspectives))
 
-(treemacs-start-on-boot)
+(unless noninteractive
+  (treemacs-start-on-boot))
 
 (provide 'my-treemacs)

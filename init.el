@@ -106,6 +106,7 @@ by Prelude.")
 ;; preload the personal settings from `prelude-personal-preload-dir'
 (when (file-directory-p prelude-personal-preload-dir)
   (message "[Prelude] Loading personal configuration files from files and directories in %s..." prelude-personal-preload-dir)
+  (add-to-list 'load-path prelude-personal-preload-dir)
   (mapc 'load (directory-files-recursively prelude-personal-preload-dir "^[^#\.].*el$")))
 
 (message "[Prelude] Loading Prelude's core modules...")

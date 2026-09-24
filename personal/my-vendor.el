@@ -1,6 +1,8 @@
 ;;; -*- lexical-binding: t -*-
 
-(defvar my-init-dir (file-name-directory user-init-file))
+(defvar my-init-dir (or (and user-init-file (file-name-directory user-init-file))
+                        (bound-and-true-p prelude-dir)
+                        default-directory))
 (defvar my-vendor-dir (expand-file-name "vendor" my-init-dir))
 
 (defun my-vendor-dest (user repo)
