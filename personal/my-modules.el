@@ -11,6 +11,9 @@
 
 ;; layout related
 (require 'my-evil-magit)
+;; `my-vterm' is disabled in favour of `my-eat' (issue #10) but kept in
+;; personal/my-vterm.el.  Uncomment the next line to switch back.
+;; (require 'my-vterm)
 (require 'my-eat)
 (require 'my-nerd-icons-dired)
 (require 'my-treemacs)
