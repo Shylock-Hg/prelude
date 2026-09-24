@@ -1,3 +1,5 @@
+;;; -*- lexical-binding: t -*-
+
 (require 'subr-x)
 
 (defun my-open-file-selected ()
