@@ -11,7 +11,7 @@
 
 ;; layout related
 (require 'my-evil-magit)
-(require 'my-vterm)
+(require 'my-eat)
 (require 'my-nerd-icons-dired)
 (require 'my-treemacs)
 ;;(require 'my-theme-ef-day)
