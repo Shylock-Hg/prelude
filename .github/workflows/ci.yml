@@ -5,10 +5,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
       - name: install emacs
-        run: sudo apt-get update && sudo apt-get install -y emacs
+        run: |
+          if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi
+          $SUDO apt-get update
+          $SUDO apt-get install -y emacs-nox
       - name: put prelude in the right place
-        run: ln -s $(pwd) $HOME/.emacs.d
+        run: |
+          ln -sfn "$(pwd)" "$HOME/.emacs.d"
+          mkdir -p vendor
       - name: load prelude
         run: emacs --batch --load init.el
