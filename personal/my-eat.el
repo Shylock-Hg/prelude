@@ -4,9 +4,9 @@
 
 ;; Terminal emulator configuration built around Eat
 ;; (https://codeberg.org/akib/emacs-eat).  This replaces the previous
-;; vterm/vterm-toggle/multi-vterm setup.  `my-eat-toggle' shows or hides
-;; the default terminal, while `my-eat-new', `my-eat-next' and
-;; `my-eat-prev' manage several terminal sessions.
+;; vterm/vterm-toggle/multi-vterm setup.  `my/eat-toggle' shows or hides
+;; the default terminal, while `my/eat-new', `my/eat-next' and
+;; `my/eat-prev' manage several terminal sessions.
 
 ;;; Code:
 
@@ -63,7 +63,7 @@ Eat itself uses."
       (eat-exec buffer (buffer-name) "/usr/bin/env" nil
                 (list "sh" "-c" (my-eat--shell))))))
 
-(defun my-eat-toggle ()
+(defun my/eat-toggle ()
   "Toggle the default Eat terminal.
 Show it in a window at the bottom of the frame, or hide its window
 when it is already visible.  The terminal process keeps running
@@ -88,7 +88,7 @@ while hidden."
   "Switch to the Eat terminal STEP positions away in the session list."
   (let ((buffers (my-eat--buffers)))
     (unless buffers
-      (user-error "No Eat terminal is running; run `my-eat-toggle' first"))
+      (user-error "No Eat terminal is running; run `my/eat-toggle' first"))
     (let* ((position (seq-position buffers (current-buffer)))
            (target (if position
                        (nth (mod (+ position step) (length buffers)) buffers)
@@ -97,24 +97,24 @@ while hidden."
                        (car (last buffers))))))
       (pop-to-buffer target))))
 
-(defun my-eat-next ()
+(defun my/eat-next ()
   "Switch to the next Eat terminal session."
   (interactive)
   (my-eat--cycle 1))
 
-(defun my-eat-prev ()
+(defun my/eat-prev ()
   "Switch to the previous Eat terminal session."
   (interactive)
   (my-eat--cycle -1))
 
-(defun my-eat-new ()
+(defun my/eat-new ()
   "Start a new Eat terminal session."
   (interactive)
   (let ((buffer (generate-new-buffer eat-buffer-name)))
     (my-eat--ensure-process buffer)
     (pop-to-buffer buffer)))
 
-(define-key eat-mode-map (kbd my-eat-toggle-key) #'my-eat-toggle)
+(define-key eat-mode-map (kbd my-eat-toggle-key) #'my/eat-toggle)
 
 ;; Reuse evil-collection's Eat integration when it is available.  The
 ;; package is loaded by `evil-collection-init' before this file, so eat is
@@ -126,13 +126,13 @@ while hidden."
 
 (with-eval-after-load 'evil
   (evil-set-initial-state 'eat-mode 'insert)
-  (define-key evil-normal-state-map (kbd my-eat-toggle-key) #'my-eat-toggle)
+  (define-key evil-normal-state-map (kbd my-eat-toggle-key) #'my/eat-toggle)
   (evil-define-key 'insert eat-mode-map
-    (kbd my-eat-toggle-key) #'my-eat-toggle)
+    (kbd my-eat-toggle-key) #'my/eat-toggle)
   (evil-define-key 'normal eat-mode-map
-    (kbd ",c") #'my-eat-new
-    (kbd ",n") #'my-eat-next
-    (kbd ",p") #'my-eat-prev))
+    (kbd ",c") #'my/eat-new
+    (kbd ",n") #'my/eat-next
+    (kbd ",p") #'my/eat-prev))
 
 (provide 'my-eat)
 ;;; my-eat.el ends here

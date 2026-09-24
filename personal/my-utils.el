@@ -25,7 +25,7 @@ through the `C-,' minibuffer and the region is no longer active."
                (< (car range) (cdr range)))
       (buffer-substring-no-properties (car range) (cdr range)))))
 
-(defun my-open-file-selected ()
+(defun my/open-file-selected ()
   "Open the selected file path and jump to its optional line number.
 The path comes from the active region, an Evil visual selection, or the
 most recent Evil visual selection when the command is invoked via
@@ -53,9 +53,5 @@ most recent Evil visual selection when the command is invoked via
           (goto-char (point-min))
           (forward-line (1- line))))
       buffer)))
-
-;; The command is occasionally invoked as `my/open-file-selected'; keep
-;; that spelling working as an alias.
-(defalias 'my/open-file-selected #'my-open-file-selected)
 
 (provide 'my-utils)

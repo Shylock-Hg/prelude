@@ -23,7 +23,7 @@ Return the opened buffer or the signaled error."
           (switch-to-buffer source)
           (insert text)
           (funcall setup)
-          (save-window-excursion (my-open-file-selected)))
+          (save-window-excursion (my/open-file-selected)))
       (when (buffer-live-p source)
         (kill-buffer source)))))
 
@@ -111,7 +111,7 @@ mimicking the region being deactivated by the `C-,' minibuffer."
 
 (ert-deftest my-open-file-selected-errors-without-selection ()
   (with-temp-buffer
-    (should-error (my-open-file-selected) :type 'user-error)))
+    (should-error (my/open-file-selected) :type 'user-error)))
 
 (ert-deftest my-open-file-selected-errors-for-empty-region ()
   (let ((source (generate-new-buffer " *my-utils-test-source*"))
@@ -123,7 +123,7 @@ mimicking the region being deactivated by the `C-,' minibuffer."
           (goto-char (point-min))
           (push-mark (point-max) t t)
           (activate-mark)
-          (should-error (my-open-file-selected) :type 'user-error))
+          (should-error (my/open-file-selected) :type 'user-error))
       (kill-buffer source))))
 
 (ert-deftest my-open-file-selected-errors-for-missing-file ()
