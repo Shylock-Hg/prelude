@@ -2,10 +2,13 @@
 
 The primary regression uses a live vterm PTY and checks an ordinary cursor in
 Evil normal and insert states without an active selection. A separate test keeps
-the visual-selection case covered, and another exercises the synchronous
+the visual-selection case covered, another exercises the synchronous
 terminal-resize redraw the native module performs when the minibuffer opens
 (`vterm--window-adjust-process-window-size`, which bypasses
-`vterm--delayed-redraw`). The implementation itself does not depend on Evil.
+`vterm--delayed-redraw`), and a further regression covers the resize and shell
+redraw that happen after the minibuffer closes, when
+`minibuffer-selected-window` is already nil. The implementation itself does not
+depend on Evil.
 The test needs GNU Emacs with module support, Evil, a built vterm native
 module, and `sh` plus `base64` on `PATH`. Install Evil and build vterm using the
 vterm project's installation instructions. No dependencies are vendored here.

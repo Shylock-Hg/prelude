@@ -328,6 +328,65 @@ The native resize code path calls `term_redraw' directly, bypassing
       (when (buffer-live-p previous-buffer)
         (switch-to-buffer previous-buffer)))))
 
+(ert-deftest my-vterm-extended-command-survives-post-minibuffer-redraw ()
+  "C-, keeps the vterm cursor when the prompt's window resize is undone.
+Closing the minibuffer grows the vterm window back and the shell emits
+fresh output, so the resize and the redraw happen after
+`minibuffer-selected-window' is nil.  The remembered buffer must keep
+protecting the cursor for that redraw."
+  (let ((previous-buffer (current-buffer)))
+    (unwind-protect
+        (dolist (state '(normal insert))
+          (let ((buffer (generate-new-buffer " *my-vterm-post-resize-test*"))
+                process before after)
+            (unwind-protect
+                (progn
+                  (switch-to-buffer buffer)
+                  (vterm-mode)
+                  (setq process vterm--process)
+                  (vterm-send-string
+                   (my-vterm-test--printf "printf 'AAAA\nBBBB\nCCCC\n'"))
+                  (vterm-send-return)
+                  (should (my-vterm-test--wait-for-text buffer process "CCCC"))
+                  (accept-process-output process 0.1)
+                  (evil-normal-state)
+                  (goto-char (save-excursion
+                               (goto-char (point-min))
+                               (search-forward "BBBB" nil t)
+                               (- (point) 2)))
+                  (when (eq state 'insert)
+                    (evil-insert-state))
+                  (setq before (my-vterm-test--cursor-state buffer))
+                  (let ((cancel-hook (lambda () (keyboard-quit))))
+                    (add-hook 'minibuffer-setup-hook cancel-hook t)
+                    (unwind-protect
+                        (condition-case nil
+                            (execute-kbd-macro (kbd my-extended-command-key))
+                          (quit nil))
+                      (remove-hook 'minibuffer-setup-hook cancel-hook)))
+                  ;; The closed minibuffer remembered the source buffer.
+                  (should (eq (my-vterm--preserve-buffer) buffer))
+                  ;; Simulate the window growing back and the shell's redraw.
+                  (let ((window-adjust-process-window-size-function
+                         (lambda (_process _windows) (cons 100 30))))
+                    (vterm--window-adjust-process-window-size process nil))
+                  (vterm--delayed-redraw buffer)
+                  (setq after (my-vterm-test--cursor-state buffer))
+                  (should (eq (plist-get before :evil-state) state))
+                  (should (= (plist-get before :point)
+                             (plist-get after :point)))
+                  (should (= (plist-get before :window-point)
+                             (plist-get after :window-point)))
+                  ;; Protection is released after that follow-up redraw.
+                  (should-not (my-vterm--preserve-buffer)))
+              (when (and (processp process) (process-live-p process))
+                (set-process-query-on-exit-flag process nil)
+                (delete-process process))
+              (when (buffer-live-p buffer)
+                (kill-buffer buffer)))))
+      (when (buffer-live-p previous-buffer)
+        (switch-to-buffer previous-buffer)))))
+
 (defun my-vterm-test--move-point-intentionally ()
   "Test command that deliberately advances point by two characters."
   (interactive)

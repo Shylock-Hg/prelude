@@ -7,6 +7,15 @@
 (require 'vterm)
 (setq vterm-max-scrollback 10000)
 
+(defvar my-vterm--preserve-buffer-after-minibuffer nil
+  "Vterm buffer whose point should survive redraws after a minibuffer.
+While a minibuffer is open `minibuffer-selected-window' identifies the
+buffer it was invoked from, but closing the minibuffer resizes that
+window back to its original size and the shell reacts to the size
+change by emitting fresh output.  Both the resize and that output
+redraw the terminal after `minibuffer-selected-window' has become nil,
+so remember the source buffer here until the follow-up redraw lands.")
+
 (defun my-vterm--minibuffer-source-buffer ()
   "Return the buffer selected before the active minibuffer, if any.
 Redraws triggered while a minibuffer is active must not move the
@@ -15,12 +24,34 @@ cursor of the buffer the minibuffer was invoked from."
     (and (window-live-p window)
          (window-buffer window))))
 
+(defun my-vterm--preserve-buffer ()
+  "Return the vterm buffer whose cursor redraws must not move.
+While a minibuffer is open this is its source buffer; right after the
+minibuffer closes it is the buffer remembered for the redraws that the
+closing window resize still triggers."
+  (or (my-vterm--minibuffer-source-buffer)
+      (and (buffer-live-p my-vterm--preserve-buffer-after-minibuffer)
+           my-vterm--preserve-buffer-after-minibuffer)))
+
+(defun my-vterm--remember-source-buffer-after-minibuffer ()
+  "Remember the vterm buffer the closing minibuffer was invoked from."
+  (let ((window (minibuffer-selected-window)))
+    (when (window-live-p window)
+      (let ((buffer (window-buffer window)))
+        (when (and (buffer-live-p buffer)
+                   (with-current-buffer buffer
+                     (derived-mode-p 'vterm-mode)))
+          (setq my-vterm--preserve-buffer-after-minibuffer buffer))))))
+
+(add-hook 'minibuffer-exit-hook
+          #'my-vterm--remember-source-buffer-after-minibuffer)
+
 (defun my-vterm--preserve-point (buffer thunk)
-  "Call THUNK preserving BUFFER's cursor while a minibuffer uses BUFFER.
-Point, mark and every window showing BUFFER are restored, so
-terminal redraws cannot yank the cursor to the buffer end while the
-user interacts with a minibuffer."
-  (let* ((protect (and (eq buffer (my-vterm--minibuffer-source-buffer))
+  "Call THUNK preserving BUFFER's cursor while it is protected.
+Point, mark and every window showing BUFFER are restored, so terminal
+redraws cannot yank the cursor to the buffer end while a minibuffer
+uses BUFFER or while the resize that closes that minibuffer settles."
+  (let* ((protect (and (eq buffer (my-vterm--preserve-buffer))
                        (buffer-live-p buffer)
                        (with-current-buffer buffer
                          (derived-mode-p 'vterm-mode))))
@@ -50,9 +81,15 @@ user interacts with a minibuffer."
                          (with-current-buffer buffer (point-max))))))))))
 
 (defun my-vterm--preserve-point-in-redraw (original buffer &rest args)
-  "Preserve BUFFER's cursor around `vterm--delayed-redraw'."
+  "Preserve BUFFER's cursor around `vterm--delayed-redraw'.
+Once the minibuffer has closed, the first redraw of the remembered
+buffer is the shell's reaction to the resize; after that protection is
+released so ordinary output follows the terminal cursor again."
   (my-vterm--preserve-point
-   buffer (lambda () (apply original buffer args))))
+   buffer (lambda () (apply original buffer args)))
+  (when (and (not (active-minibuffer-window))
+             (eq buffer my-vterm--preserve-buffer-after-minibuffer))
+    (setq my-vterm--preserve-buffer-after-minibuffer nil)))
 
 (defun my-vterm--preserve-point-in-window-adjust (original process windows)
   "Preserve the vterm cursor around a terminal window resize.
