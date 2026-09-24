@@ -6,6 +6,68 @@
 
 (require 'vterm)
 (setq vterm-max-scrollback 10000)
+
+(defvar-local my-vterm--extended-command-source-buffer nil
+  "Vterm buffer whose point is preserved during this M-x prompt.")
+
+(defun my-vterm--remember-extended-command-source-buffer ()
+  "Remember the selected vterm buffer for an extended-command prompt."
+  (setq-local my-vterm--extended-command-source-buffer nil)
+  (when (eq this-command 'execute-extended-command)
+    (let* ((window (minibuffer-selected-window))
+           (buffer (and (window-live-p window)
+                        (window-buffer window))))
+      (when (and (buffer-live-p buffer)
+                 (with-current-buffer buffer
+                   (derived-mode-p 'vterm-mode)))
+        (setq-local my-vterm--extended-command-source-buffer buffer)))))
+
+(add-hook 'minibuffer-setup-hook
+          #'my-vterm--remember-extended-command-source-buffer)
+
+(defun my-vterm--clear-extended-command-source-buffer ()
+  "Clear the saved vterm buffer after the M-x minibuffer closes."
+  (setq-local my-vterm--extended-command-source-buffer nil))
+
+(add-hook 'minibuffer-exit-hook
+          #'my-vterm--clear-extended-command-source-buffer)
+
+(defun my-vterm--preserve-point-during-extended-command
+  (original buffer &rest args)
+  "Preserve BUFFER's point during redraw while its M-x prompt is active."
+  (let* ((window (active-minibuffer-window))
+         (minibuffer (and (window-live-p window) (window-buffer window)))
+         (source-buffer
+          (and (buffer-live-p minibuffer)
+               (buffer-local-value
+                'my-vterm--extended-command-source-buffer minibuffer))))
+    (let* ((protect (and (eq buffer source-buffer)
+                         (buffer-live-p buffer)
+                         (with-current-buffer buffer
+                           (derived-mode-p 'vterm-mode))))
+           (window-points
+            (when protect
+              (mapcar (lambda (window)
+                        (cons window (window-point window)))
+                      (get-buffer-window-list buffer nil t)))))
+      (unwind-protect
+          (if protect
+              (with-current-buffer buffer
+                (save-mark-and-excursion
+                  (apply original buffer args)))
+            (apply original buffer args))
+        (dolist (entry window-points)
+          (let ((window (car entry))
+                (position (cdr entry)))
+            (when (and (window-live-p window)
+                       (eq (window-buffer window) buffer))
+              (set-window-point
+               window (min position
+                           (with-current-buffer buffer (point-max)))))))))))
+
+(advice-add 'vterm--delayed-redraw :around
+            #'my-vterm--preserve-point-during-extended-command)
+
 (use-package vterm-toggle
   :ensure t  ; Install if not present (requires use-package)
   :demand t
