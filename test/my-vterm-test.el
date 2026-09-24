@@ -85,7 +85,7 @@
            (setq prompt-state (my-vterm-test--cursor-state buffer))
            (setq prompt-state
                  (plist-put prompt-state :guard
-                            (eq my-vterm--extended-command-source-buffer
+                            (eq (my-vterm--minibuffer-source-buffer)
                                 buffer)))
            (setq saw-output (my-vterm-test--wait-for-text buffer process text))
            (setq redraw-state (my-vterm-test--cursor-state buffer))
@@ -99,9 +99,7 @@
     (list prompt-state redraw-state saw-output
           (my-vterm-test--cursor-state buffer)
           (and (buffer-live-p prompt-buffer)
-               (null (buffer-local-value
-                      'my-vterm--extended-command-source-buffer
-                      prompt-buffer))))))
+               (null (my-vterm--minibuffer-source-buffer))))))
 
 (defun my-vterm-test--live-output-script ()
   "Return a shell command that emits delayed output during a prompt."
@@ -270,6 +268,66 @@
       (when (buffer-live-p previous-buffer)
         (switch-to-buffer previous-buffer)))))
 
+(ert-deftest my-vterm-extended-command-survives-terminal-resize ()
+  "C-, keeps the vterm cursor when the terminal is resized for the prompt.
+The native resize code path calls `term_redraw' directly, bypassing
+`vterm--delayed-redraw', and used to yank the cursor to the buffer end."
+  (let ((previous-buffer (current-buffer)))
+    (unwind-protect
+        (dolist (state '(normal insert))
+          (let ((buffer (generate-new-buffer " *my-vterm-resize-test*"))
+                process before resized after-cancel)
+            (unwind-protect
+                (progn
+                  (switch-to-buffer buffer)
+                  (vterm-mode)
+                  (setq process vterm--process)
+                  (vterm-send-string
+                   (my-vterm-test--printf "printf 'AAAA\nBBBB\nCCCC\n'"))
+                  (vterm-send-return)
+                  (should (my-vterm-test--wait-for-text buffer process "CCCC"))
+                  (accept-process-output process 0.1)
+                  (evil-normal-state)
+                  (goto-char (save-excursion
+                               (goto-char (point-min))
+                               (search-forward "BBBB" nil t)
+                               (- (point) 2)))
+                  (when (eq state 'insert)
+                    (evil-insert-state))
+                  (setq before (my-vterm-test--cursor-state buffer))
+                  (let ((resize-hook
+                         (lambda ()
+                           (with-current-buffer buffer
+                             (let ((window-adjust-process-window-size-function
+                                    (lambda (_process _windows) (cons 100 30))))
+                               (vterm--window-adjust-process-window-size
+                                process nil)))
+                           (setq resized (my-vterm-test--cursor-state buffer))
+                           (keyboard-quit))))
+                    (add-hook 'minibuffer-setup-hook resize-hook t)
+                    (unwind-protect
+                        (condition-case nil
+                            (execute-kbd-macro (kbd my-extended-command-key))
+                          (quit nil))
+                      (remove-hook 'minibuffer-setup-hook resize-hook)))
+                  (setq after-cancel (my-vterm-test--cursor-state buffer))
+                  (should (eq (plist-get before :evil-state) state))
+                  (should (= (plist-get before :point)
+                             (plist-get resized :point)))
+                  (should (= (plist-get before :window-point)
+                             (plist-get resized :window-point)))
+                  (should (= (plist-get before :point)
+                             (plist-get after-cancel :point)))
+                  (should (= (plist-get before :window-point)
+                             (plist-get after-cancel :window-point))))
+              (when (and (processp process) (process-live-p process))
+                (set-process-query-on-exit-flag process nil)
+                (delete-process process))
+              (when (buffer-live-p buffer)
+                (kill-buffer buffer)))))
+      (when (buffer-live-p previous-buffer)
+        (switch-to-buffer previous-buffer)))))
+
 (defun my-vterm-test--move-point-intentionally ()
   "Test command that deliberately advances point by two characters."
   (interactive)
@@ -305,7 +363,7 @@
                   (lambda ()
                     (setq guard-minibuffer (current-buffer))
                     (setq guard-seen
-                          (eq my-vterm--extended-command-source-buffer buffer))
+                          (eq (my-vterm--minibuffer-source-buffer) buffer))
                     (insert "my-vterm-test--move-point-intentionally")
                     (run-at-time 0 nil #'my-vterm-test--exit-minibuffer
                                  (current-buffer)))))
@@ -315,9 +373,7 @@
               (remove-hook 'minibuffer-setup-hook accept-command-hook))
             (should guard-seen)
             (should (buffer-live-p guard-minibuffer))
-            (should-not (buffer-local-value
-                         'my-vterm--extended-command-source-buffer
-                         guard-minibuffer))
+            (should-not (my-vterm--minibuffer-source-buffer))
             (should-not (active-minibuffer-window))
             (should (= (point) expected))))
       (when (and (processp process) (process-live-p process))

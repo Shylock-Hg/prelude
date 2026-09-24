@@ -7,66 +7,66 @@
 (require 'vterm)
 (setq vterm-max-scrollback 10000)
 
-(defvar-local my-vterm--extended-command-source-buffer nil
-  "Vterm buffer whose point is preserved during this M-x prompt.")
+(defun my-vterm--minibuffer-source-buffer ()
+  "Return the buffer selected before the active minibuffer, if any.
+Redraws triggered while a minibuffer is active must not move the
+cursor of the buffer the minibuffer was invoked from."
+  (let ((window (minibuffer-selected-window)))
+    (and (window-live-p window)
+         (window-buffer window))))
 
-(defun my-vterm--remember-extended-command-source-buffer ()
-  "Remember the selected vterm buffer for an extended-command prompt."
-  (setq-local my-vterm--extended-command-source-buffer nil)
-  (when (eq this-command 'execute-extended-command)
-    (let* ((window (minibuffer-selected-window))
-           (buffer (and (window-live-p window)
-                        (window-buffer window))))
-      (when (and (buffer-live-p buffer)
-                 (with-current-buffer buffer
-                   (derived-mode-p 'vterm-mode)))
-        (setq-local my-vterm--extended-command-source-buffer buffer)))))
+(defun my-vterm--preserve-point (buffer thunk)
+  "Call THUNK preserving BUFFER's cursor while a minibuffer uses BUFFER.
+Point, mark and every window showing BUFFER are restored, so
+terminal redraws cannot yank the cursor to the buffer end while the
+user interacts with a minibuffer."
+  (let* ((protect (and (eq buffer (my-vterm--minibuffer-source-buffer))
+                       (buffer-live-p buffer)
+                       (with-current-buffer buffer
+                         (derived-mode-p 'vterm-mode))))
+         (point (and protect (with-current-buffer buffer (point))))
+         (mark (and protect (with-current-buffer buffer (mark t))))
+         (window-points
+          (when protect
+            (mapcar (lambda (window)
+                      (cons window (window-point window)))
+                    (get-buffer-window-list buffer nil t)))))
+    (unwind-protect
+        (if protect
+            (with-current-buffer buffer
+              (unwind-protect
+                  (funcall thunk)
+                (goto-char (min point (point-max)))
+                (when mark
+                  (set-marker (mark-marker) (min mark (point-max))))))
+          (funcall thunk))
+      (dolist (entry window-points)
+        (let ((window (car entry))
+              (position (cdr entry)))
+          (when (and (window-live-p window)
+                     (eq (window-buffer window) buffer))
+            (set-window-point
+             window (min position
+                         (with-current-buffer buffer (point-max))))))))))
 
-(add-hook 'minibuffer-setup-hook
-          #'my-vterm--remember-extended-command-source-buffer)
+(defun my-vterm--preserve-point-in-redraw (original buffer &rest args)
+  "Preserve BUFFER's cursor around `vterm--delayed-redraw'."
+  (my-vterm--preserve-point
+   buffer (lambda () (apply original buffer args))))
 
-(defun my-vterm--clear-extended-command-source-buffer ()
-  "Clear the saved vterm buffer after the M-x minibuffer closes."
-  (setq-local my-vterm--extended-command-source-buffer nil))
-
-(add-hook 'minibuffer-exit-hook
-          #'my-vterm--clear-extended-command-source-buffer)
-
-(defun my-vterm--preserve-point-during-extended-command
-  (original buffer &rest args)
-  "Preserve BUFFER's point during redraw while its M-x prompt is active."
-  (let* ((window (active-minibuffer-window))
-         (minibuffer (and (window-live-p window) (window-buffer window)))
-         (source-buffer
-          (and (buffer-live-p minibuffer)
-               (buffer-local-value
-                'my-vterm--extended-command-source-buffer minibuffer))))
-    (let* ((protect (and (eq buffer source-buffer)
-                         (buffer-live-p buffer)
-                         (with-current-buffer buffer
-                           (derived-mode-p 'vterm-mode))))
-           (window-points
-            (when protect
-              (mapcar (lambda (window)
-                        (cons window (window-point window)))
-                      (get-buffer-window-list buffer nil t)))))
-      (unwind-protect
-          (if protect
-              (with-current-buffer buffer
-                (save-mark-and-excursion
-                  (apply original buffer args)))
-            (apply original buffer args))
-        (dolist (entry window-points)
-          (let ((window (car entry))
-                (position (cdr entry)))
-            (when (and (window-live-p window)
-                       (eq (window-buffer window) buffer))
-              (set-window-point
-               window (min position
-                           (with-current-buffer buffer (point-max)))))))))))
+(defun my-vterm--preserve-point-in-window-adjust (original process windows)
+  "Preserve the vterm cursor around a terminal window resize.
+`vterm--window-adjust-process-window-size' resizes the terminal and
+redraws it synchronously through the native module, which moves the
+buffer point to the terminal cursor."
+  (my-vterm--preserve-point
+   (process-buffer process)
+   (lambda () (funcall original process windows))))
 
 (advice-add 'vterm--delayed-redraw :around
-            #'my-vterm--preserve-point-during-extended-command)
+            #'my-vterm--preserve-point-in-redraw)
+(advice-add 'vterm--window-adjust-process-window-size :around
+            #'my-vterm--preserve-point-in-window-adjust)
 
 (use-package vterm-toggle
   :ensure t  ; Install if not present (requires use-package)
