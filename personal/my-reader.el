@@ -6,9 +6,9 @@
 ;; The reader is a GUI document reader whose native module is built against
 ;; MuPDF.  Skip it entirely in noninteractive (batch/CI) sessions.
 (unless noninteractive
-  (defvar my-reader-fresh-installed (my/vendor-install-git "codeberg.org" "divyaranjan" "emacs-reader"))
+  (defvar my-reader-fresh-installed (my-vendor-install-git "codeberg.org" "divyaranjan" "emacs-reader"))
 
-  (defvar my-reader-dir (my/vendor-dest "divyaranjan" "emacs-reader"))
+  (defvar my-reader-dir (my-vendor-dest "divyaranjan" "emacs-reader"))
 
   (when (eq my-reader-fresh-installed t)
     (message "Compiling emacs-reader...")
