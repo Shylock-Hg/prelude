@@ -11,6 +11,11 @@
 ;; Keep the real Evil state machine and its pre/post command hooks active.
 (evil-mode 1)
 
+(defvar my-eat-test-shadow-mode-map (make-sparse-keymap))
+(define-minor-mode my-eat-test-shadow-mode
+  "Minor mode used to test normal-state binding precedence."
+  :keymap my-eat-test-shadow-mode-map)
+
 (defconst my-eat-test--timeout 5.0
   "Seconds to wait for a terminal process to produce output.")
 
@@ -53,6 +58,12 @@
   (should (eq (lookup-key evil-normal-state-map (kbd my-eat-toggle-key))
               #'my/eat-toggle))
   (with-temp-buffer
+    (fundamental-mode)
+    (evil-normal-state)
+    (should (eq (key-binding (kbd my-eat-toggle-key)) #'my/eat-toggle))
+    (evil-insert-state)
+    (should-not (eq (key-binding (kbd my-eat-toggle-key)) #'my/eat-toggle)))
+  (with-temp-buffer
     (eat-mode)
     (let ((normal (evil-get-auxiliary-keymap eat-mode-map 'normal t t))
           (insert (evil-get-auxiliary-keymap eat-mode-map 'insert t t)))
@@ -61,6 +72,19 @@
       (should (eq (lookup-key normal (kbd ",p")) #'my/eat-prev))
       (should (eq (lookup-key insert (kbd my-eat-toggle-key))
                   #'my/eat-toggle)))))
+
+(ert-deftest my-eat-overrides-a-minor-mode-normal-binding ()
+  "The toggle wins over a minor mode's Evil normal-state binding."
+  (evil-define-key 'normal my-eat-test-shadow-mode-map
+    (kbd my-eat-toggle-key) #'pop-tag-mark)
+  (with-temp-buffer
+    (fundamental-mode)
+    (my-eat-test-shadow-mode 1)
+    (evil-normal-state)
+    (evil-normalize-keymaps)
+    (should (eq (key-binding (kbd my-eat-toggle-key)) #'pop-tag-mark))
+    (my-eat--bind-normal-toggle my-eat-test-shadow-mode-map)
+    (should (eq (key-binding (kbd my-eat-toggle-key)) #'my/eat-toggle))))
 
 (ert-deftest my-eat-toggle-starts-and-hides-a-terminal ()
   "`my/eat-toggle' shows a live terminal, then hides its window."

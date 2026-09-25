@@ -24,10 +24,11 @@ emacs --batch -Q -L personal \
 ## Eat
 
 The tests cover the Eat configuration in `personal/my-eat.el`: the toggle and
-multi-session commands exist and are wired to the expected keys, the toggle key
-is reserved for Emacs inside Eat, Evil's normal/insert states receive the
-bindings, and a real PTY survives toggling, opening several sessions and running
-a shell command.
+multi-session commands exist and are wired to the expected keys, `C-t` opens
+Eat from ordinary buffers in Evil's normal state, and the toggle takes
+precedence over a minor mode's normal-state binding. The toggle key is reserved
+for Emacs inside Eat, and a real PTY survives toggling, opening several
+sessions and running a shell command.
 
 The suite needs GNU Emacs with Evil and Eat sources, plus `sh` on `PATH`. No
 dependencies are vendored here.

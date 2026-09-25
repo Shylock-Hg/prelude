@@ -17,6 +17,7 @@
 (require 'eat)
 
 (declare-function evil-define-key "evil-core")
+(declare-function evil-get-auxiliary-keymap "evil-core")
 (declare-function evil-set-initial-state "evil-core")
 (defvar evil-normal-state-map)
 
@@ -133,6 +134,21 @@ while hidden."
     (kbd ",c") #'my/eat-new
     (kbd ",n") #'my/eat-next
     (kbd ",p") #'my/eat-prev))
+
+;; These minor modes install their own Evil normal-state maps.  In
+;; particular, Evil Collection binds C-t to `pop-tag-mark' in
+;; elisp-slime-nav, shadowing `evil-normal-state-map'.
+(defun my-eat--bind-normal-toggle (map)
+  "Bind the Eat toggle in the Evil normal-state part of MAP."
+  (define-key (evil-get-auxiliary-keymap map 'normal t t)
+              (kbd my-eat-toggle-key) #'my/eat-toggle))
+
+(with-eval-after-load 'elisp-slime-nav
+  (my-eat--bind-normal-toggle elisp-slime-nav-mode-map))
+(with-eval-after-load 'eglot
+  (my-eat--bind-normal-toggle eglot-mode-map))
+(with-eval-after-load 'anaconda-mode
+  (my-eat--bind-normal-toggle anaconda-mode-map))
 
 (provide 'my-eat)
 ;;; my-eat.el ends here
