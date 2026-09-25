@@ -39,6 +39,8 @@ jobs:
           mkdir -p vendor
       - name: load prelude
         run: emacs --batch --load init.el
+      - name: run unit tests
+        run: test/run-unit-tests.sh
       - name: exercise emacs-reader in a graphical Emacs
         run: |
           timeout --signal=TERM --kill-after=30s 10m \
