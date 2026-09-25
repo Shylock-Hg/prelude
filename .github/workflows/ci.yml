@@ -19,15 +19,33 @@ jobs:
                 "$f"
             fi
           done
-          # bookworm only ships Emacs 28.2; the configuration needs 29+ (the
-          # built-in `use-package`), so take Emacs 30 from trixie.
+          # The configuration needs Emacs 29+ and the reader smoke needs a
+          # GUI build, so install Trixie's Emacs GTK package.
           echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] https://mirrors.tuna.tsinghua.edu.cn/debian trixie main" \
             | $SUDO tee /etc/apt/sources.list.d/trixie.list >/dev/null
+          # trixie has MuPDF 1.25.1, below emacs-reader's 1.26 minimum.  forky
+          # ships a newer compatible development package and pkg-config file.
+          echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] https://mirrors.tuna.tsinghua.edu.cn/debian forky main" \
+            | $SUDO tee /etc/apt/sources.list.d/forky.list >/dev/null
           $SUDO apt-get update
-          $SUDO apt-get install -y --no-install-recommends -t trixie emacs-nox
+          $SUDO apt-get install -y --no-install-recommends -t trixie \
+            emacs-gtk xvfb xauth build-essential pkg-config
+          $SUDO apt-get install -y --no-install-recommends -t forky libmupdf-dev
+          MUPDF_VERSION=$(pkg-config --modversion mupdf)
+          echo "MuPDF version: $MUPDF_VERSION"
+          dpkg --compare-versions "$MUPDF_VERSION" ge 1.26.0
+          emacs --batch -Q --eval '(unless (and module-file-suffix (fboundp '\''module-load)) (error "Emacs was built without dynamic module support"))'
       - name: put prelude in the right place
         run: |
           ln -sfn "$(pwd)" "$HOME/.emacs.d"
           mkdir -p vendor
       - name: load prelude
         run: emacs --batch --load init.el
+      - name: render a PDF with emacs-reader
+        env:
+          PRELUDE_CI_READER_RESULT: ${{ runner.temp }}/emacs-reader-smoke.txt
+        run: |
+          timeout --signal=TERM --kill-after=30s 10m \
+            xvfb-run -a -s "-screen 0 1280x1024x24" \
+            emacs -Q --load .github/scripts/reader-gui-smoke.el
+          cat "$PRELUDE_CI_READER_RESULT"
