@@ -4,6 +4,23 @@ The active terminal configuration uses Eat (`personal/my-eat.el`). The older
 vterm configuration (`personal/my-vterm.el`) is kept but no longer loaded
 (issue #10), and its regression suite is retained so it can be re-enabled.
 
+## Personal utilities and vendor cloning
+
+The utility tests cover selected-file handling in `personal/my-utils.el`, and
+the vendor tests cover clone staging and cleanup in `personal/my-vendor.el`.
+They run offline: Git is stubbed in the vendor tests, and Evil is optional. The
+two Evil integration tests in the utility suite are reported as skipped when
+Evil is unavailable.
+
+From the repository root, run:
+
+```sh
+emacs --batch -Q -L personal \
+  -l test/my-utils-test.el \
+  -l test/my-vendor-test.el \
+  -f ert-run-tests-batch-and-exit
+```
+
 ## Eat
 
 The tests cover the Eat configuration in `personal/my-eat.el`: the toggle and

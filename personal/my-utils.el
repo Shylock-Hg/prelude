@@ -12,18 +12,34 @@
 Prefer the active region (which covers an expanded Evil visual
 selection).  When there is no active region, fall back to the last Evil
 visual selection so that the command still works when it is invoked
-through the `C-,' minibuffer and the region is no longer active."
-  (let ((range
-         (cond
-          ((use-region-p)
-           (cons (region-beginning) (region-end)))
-          ((and (boundp 'evil-visual-beginning)
-                (markerp evil-visual-beginning)
-                (markerp evil-visual-end))
-           (cons evil-visual-beginning evil-visual-end)))))
-    (when (and range
-               (< (car range) (cdr range)))
-      (buffer-substring-no-properties (car range) (cdr range)))))
+through the `C-,' minibuffer and the region is no longer active.  An
+invalid last Evil selection, such as one from another buffer or outside
+the accessible part of a narrowed buffer, returns nil."
+  (let* ((range
+          (cond
+           ((use-region-p)
+            (cons (region-beginning) (region-end)))
+           ((and (boundp 'evil-visual-beginning)
+                 (boundp 'evil-visual-end)
+                 (markerp evil-visual-beginning)
+                 (markerp evil-visual-end)
+                 (eq (marker-buffer evil-visual-beginning) (current-buffer))
+                 (eq (marker-buffer evil-visual-end) (current-buffer)))
+            (let ((beginning (marker-position evil-visual-beginning))
+                  (end (marker-position evil-visual-end)))
+              (when (and beginning end
+                         (<= (point-min) beginning)
+                         (< beginning end)
+                         (<= end (point-max)))
+                (cons beginning end))))))
+         (beginning (car-safe range))
+         (end (cdr-safe range)))
+    (when (and (integerp beginning)
+               (integerp end)
+               (<= (point-min) beginning)
+               (< beginning end)
+               (<= end (point-max)))
+      (buffer-substring-no-properties beginning end))))
 
 (defun my/open-file-selected ()
   "Open the selected file path and jump to its optional line number.
