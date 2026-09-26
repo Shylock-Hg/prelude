@@ -46,6 +46,42 @@
   (dolist (command '(my/eat-toggle my/eat-new my/eat-next my/eat-prev))
     (should (commandp command))))
 
+(ert-deftest my-eat-clear-erases-scrollback ()
+  "The private terminfo makes ncurses `clear' emit CSI 3 J."
+  (should (equal my-eat-terminfo-directory
+                 (expand-file-name ".cahce/eat-terminfo/"
+                                   user-emacs-directory)))
+  (skip-unless (and (executable-find "tic")
+                    (executable-find "infocmp")
+                    (executable-find "clear")))
+  (let ((directory (make-temp-file "my-eat-terminfo-" t))
+        (original eat-term-terminfo-directory)
+        (global-terminfo (getenv "TERMINFO")))
+    (unwind-protect
+        (let ((my-eat-terminfo-directory directory))
+          (my-eat--configure-terminfo)
+          (should (equal eat-term-terminfo-directory directory))
+          (should (equal (getenv "TERMINFO") global-terminfo))
+          (dolist (term '("eat-mono" "eat-color"
+                          "eat-256color" "eat-truecolor"))
+            (let ((process-environment
+                   (cons (concat "TERMINFO=" directory)
+                         (cons (concat "TERM=" term) process-environment))))
+              (with-temp-buffer
+                (should (= 0 (call-process "infocmp" nil t nil "-x" "-1")))
+                (goto-char (point-min))
+                (should (search-forward "E3=\\E[3J," nil t)))
+              (with-temp-buffer
+                (should (= 0 (call-process "clear" nil t)))
+                (should (string-match-p (regexp-quote "\e[2J\e[3J")
+                                        (buffer-string))))))
+          (let ((compiled (expand-file-name "e/eat-truecolor" directory)))
+            (delete-file compiled)
+            (my-eat--configure-terminfo)
+            (should (file-exists-p compiled))))
+      (setq eat-term-terminfo-directory original)
+      (delete-directory directory t))))
+
 (ert-deftest my-eat-reserves-the-toggle-key ()
   "The toggle key is not swallowed by Eat and is bound to the toggle."
   (should (member (vconcat (kbd my-eat-toggle-key))

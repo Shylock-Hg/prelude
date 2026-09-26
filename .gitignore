@@ -29,6 +29,7 @@ prelude-cheatsheet.log
 transient/
 var/
 .cache/
+.cahce/
 .lsp-session*
 gotools/
 eln-cache/

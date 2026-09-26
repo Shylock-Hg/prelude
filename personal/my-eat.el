@@ -16,6 +16,71 @@
 (prelude-require-package 'eat)
 (require 'eat)
 
+;; ncurses `clear' sends E3 (CSI 3 J) when the terminal advertises it.
+;; Eat understands that sequence, but its bundled terminfo omits E3.
+;; Compile a private copy so only programs running in Eat see it.
+(defvar my-eat-terminfo-directory
+  (expand-file-name ".cahce/eat-terminfo/" user-emacs-directory)
+  "Private terminfo directory for Eat terminals.")
+
+(defun my-eat--terminfo-source ()
+  "Return Eat's bundled terminfo source, or signal an error."
+  (let ((source (expand-file-name "eat.ti"
+                                  (file-name-directory (locate-library "eat")))))
+    (unless (file-readable-p source)
+      (error "Cannot read Eat terminfo source: %s" source))
+    source))
+
+(defun my-eat--terminfo-with-e3 (source)
+  "Return SOURCE with the E3 capability added to Eat's base entry."
+  (with-temp-buffer
+    (insert-file-contents source)
+    (goto-char (point-min))
+    (unless (re-search-forward "^[ \t]*clear=[^,\n]*," nil t)
+      (error "Eat terminfo has no clear capability: %s" source))
+    (let ((clear-end (point)))
+      (goto-char (point-min))
+      (unless (re-search-forward "^[ \t]*E3=" nil t)
+        (goto-char clear-end)
+        (insert "\n  E3=\\E[3J,")))
+    (buffer-string)))
+
+(defun my-eat--configure-terminfo ()
+  "Compile Eat terminfo with E3 and use it for Eat subprocesses."
+  (let* ((source (my-eat--terminfo-source))
+         (generated (expand-file-name "eat-with-e3.ti"
+                                      my-eat-terminfo-directory))
+         (contents (my-eat--terminfo-with-e3 source))
+         (entries '("eat-mono" "eat-color" "eat-256color" "eat-truecolor"))
+         (outdated
+          (or (not (file-exists-p generated))
+              (not (string= contents
+                            (with-temp-buffer
+                              (insert-file-contents generated)
+                              (buffer-string))))
+              (seq-some
+               (lambda (name)
+                 (let ((compiled (expand-file-name
+                                  (concat "e/" name)
+                                  my-eat-terminfo-directory)))
+                   (or (not (file-exists-p compiled))
+                       (file-newer-than-file-p generated compiled))))
+               entries))))
+    (when outdated
+      (unless (executable-find "tic")
+        (error "Cannot compile Eat terminfo: `tic' is not installed"))
+      (make-directory my-eat-terminfo-directory t)
+      (with-temp-file generated
+        (insert contents))
+      (with-current-buffer (get-buffer-create "*Eat terminfo build*")
+        (erase-buffer)
+        (unless (eq 0 (call-process "tic" nil t nil "-x" "-o"
+                                    my-eat-terminfo-directory generated))
+          (error "Cannot compile Eat terminfo; see *Eat terminfo build*"))))
+    (setq eat-term-terminfo-directory my-eat-terminfo-directory)))
+
+(my-eat--configure-terminfo)
+
 (declare-function evil-define-key "evil-core")
 (declare-function evil-get-auxiliary-keymap "evil-core")
 (declare-function evil-set-initial-state "evil-core")

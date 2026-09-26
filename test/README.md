@@ -28,10 +28,11 @@ multi-session commands exist and are wired to the expected keys, `C-t` opens
 Eat from ordinary buffers in Evil's normal state, and the toggle takes
 precedence over a minor mode's normal-state binding. The toggle key is reserved
 for Emacs inside Eat, and a real PTY survives toggling, opening several
-sessions and running a shell command.
+sessions and running a shell command. The terminfo test checks that `clear`
+emits the scrollback erase sequence and that a missing compiled entry is rebuilt.
 
-The suite needs GNU Emacs with Evil and Eat sources, plus `sh` on `PATH`. No
-dependencies are vendored here.
+The suite needs GNU Emacs with Evil and Eat sources, plus `sh`, `tic`,
+`infocmp`, and `clear` on `PATH`. No dependencies are vendored here.
 
 From the repository root, set the package directories (each directory must
 contain `eat.el` or `evil.el`) and run:
