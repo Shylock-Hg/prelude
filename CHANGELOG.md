@@ -6,6 +6,7 @@
 
 ### New features
 
+- [#40](https://forgejo.shylockhg.me/shylock/prelude/issues/40): Configure the `forge` package to support the `forgejo.shylockhg.me` Forgejo instance.
 - [#36](https://forgejo.shylockhg.me/shylock/prelude/issues/36): Make `clear` erase Eat scrollback using a private terminfo database.
 - [PR 1432](https://github.com/bbatsov/prelude/pull/1432): Allow directories of custom Emacs Lisp files in `personal/preload`.
 - Enable `org-habits`.

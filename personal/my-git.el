@@ -17,6 +17,10 @@
                               forge-gitlab-repository))
   ;(add-to-list 'forge-alist '("shylock-server" "shylock-server/gitlab/api/v4" "shylock-server/gitlab"
   ;                            forge-gitlab-repository))
+  (add-to-list 'forge-alist '("forgejo.shylockhg.me"
+                              "forgejo.shylockhg.me/api/v1"
+                              "forgejo.shylockhg.me"
+                              forge-forgejo-repository))
   (add-to-list 'ghub-insecure-hosts "work-wsl:9000/api/v4")
   (add-to-list 'ghub-insecure-hosts "work-wsl:9000")
   )
