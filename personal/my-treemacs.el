@@ -2,6 +2,15 @@
 
 (require 'prelude-packages)
 
+;; Emacs shows this buffer while confirming exit with active processes.
+;; Keep it in its own bottom side window so displaying and quitting it
+;; cannot split or reuse Treemacs's left side window.
+(add-to-list 'display-buffer-alist
+             '("\\`\\*Process List\\*\\'"
+               (display-buffer-in-side-window)
+               (side . bottom)
+               (slot . 0)))
+
 (prelude-require-packages '(treemacs treemacs-evil
                             treemacs-persp treemacs-projectile
                             nerd-icons treemacs-nerd-icons
