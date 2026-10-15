@@ -137,6 +137,87 @@ mimicking the region being deactivated by the `C-,' minibuffer."
     (should-error (my-utils-test--run missing #'my-utils-test--active-region)
                   :type 'user-error)))
 
+(ert-deftest my-open-file-selected-resolves-relative-paths ()
+  (let* ((directory (make-temp-file "my-utils-relative-" t))
+         (default-directory (file-name-as-directory directory))
+         (file (expand-file-name "file with spaces" directory))
+         target)
+    (unwind-protect
+        (progn
+          (my-utils-test--write-lines file 8)
+          (setq target
+                (my-utils-test--run " ./file with spaces:4 "
+                                    #'my-utils-test--active-region))
+          (should (equal target (get-file-buffer file)))
+          (should (= (my-utils-test--line target
+                                          (with-current-buffer target (point)))
+                     4)))
+      (my-utils-test--cleanup file target)
+      (delete-directory directory))))
+
+(ert-deftest my-open-file-selected-uses-live-eat-shell-directory ()
+  "Resolve a selection after shell cd, with stale `default-directory'."
+  (skip-unless (file-directory-p "/proc/self"))
+  (let* ((directory (make-temp-file "my-utils-eat-" t))
+         (file (expand-file-name "relative file" directory))
+         (source (generate-new-buffer " *my-utils-eat-source*"))
+         (transient-mark-mode t)
+         process target)
+    (unwind-protect
+        (progn
+          (my-utils-test--write-lines file 8)
+          (with-current-buffer source
+            (setq major-mode 'eat-mode)
+            (setq process
+                  (make-process :name "my-utils-eat-shell" :buffer source
+                                :command '("sh") :connection-type 'pipe
+                                :noquery t))
+            (process-send-string
+             process (format "cd %s\nprintf 'ready\\n'\n"
+                             (shell-quote-argument directory)))
+            (let ((deadline (+ (float-time) 5)))
+              (while (and (not (string-match-p "ready" (buffer-string)))
+                          (< (float-time) deadline))
+                (accept-process-output process 0.05)))
+            (should (string-match-p "ready" (buffer-string)))
+            (should-not (equal (file-truename default-directory)
+                               (file-name-as-directory directory)))
+            ;; Also verify the directory is queried afresh after another cd.
+            (dolist (selection '("./relative file:6" "../relative file:6"))
+              (when (string-prefix-p "../" selection)
+                (make-directory (expand-file-name "child" directory))
+                (erase-buffer)
+                (process-send-string process "cd child\nprintf 'ready\\n'\n")
+                (let ((deadline (+ (float-time) 5)))
+                  (while (and (not (string-match-p "ready" (buffer-string)))
+                              (< (float-time) deadline))
+                    (accept-process-output process 0.05)))
+                (should (string-match-p "ready" (buffer-string))))
+              (erase-buffer)
+              (insert selection)
+              (my-utils-test--active-region)
+              (setq target (save-window-excursion (my/open-file-selected)))
+              (should (equal target (get-file-buffer file)))
+              (should (= (my-utils-test--line
+                          target (with-current-buffer target (point)))
+                         6)))))
+      (when (process-live-p process)
+        (delete-process process))
+      (kill-buffer source)
+      (my-utils-test--cleanup file target)
+      (delete-directory directory t))))
+
+(ert-deftest my-selected-file-directory-falls-back-in-eat-without-process ()
+  (with-temp-buffer
+    (setq major-mode 'eat-mode)
+    (should (equal (my--selected-file-directory) default-directory))))
+
+(ert-deftest my-selected-file-directory-preserves-remote-eat-directory ()
+  (with-temp-buffer
+    (setq major-mode 'eat-mode
+          default-directory "/ssh:example.invalid:/project/")
+    (should (equal (my--selected-file-directory) default-directory))))
+
 (ert-deftest my--selected-text-ignores-partially-bound-evil-markers ()
   (with-temp-buffer
     (insert "selection")

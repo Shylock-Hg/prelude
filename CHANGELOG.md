@@ -6,6 +6,7 @@
 
 ### New features
 
+- [#45](https://forgejo.shylockhg.me/shylock/prelude/issues/45): Resolve selected relative file paths against the live Eat shell directory on Linux, with buffer directory tracking as a fallback.
 - [#43](https://forgejo.shylockhg.me/shylock/prelude/issues/43): Add TLA+ support with `tla-ts-mode` tree-sitter highlighting and Eglot LSP integration.
 - [#40](https://forgejo.shylockhg.me/shylock/prelude/issues/40): Configure the `forge` package to support the `forgejo.shylockhg.me` Forgejo instance.
 - [#36](https://forgejo.shylockhg.me/shylock/prelude/issues/36): Make `clear` erase Eat scrollback using a private terminfo database.

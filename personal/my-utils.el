@@ -41,11 +41,29 @@ the accessible part of a narrowed buffer, returns nil."
                (<= end (point-max)))
       (buffer-substring-no-properties beginning end))))
 
+(defun my--selected-file-directory ()
+  "Return the base directory for a selected file path.
+In a local Eat buffer on Linux, use the live shell process's working
+directory, even without Eat shell integration.  Otherwise use
+`default-directory', which Eat shell integration also updates."
+  (or (when (and (derived-mode-p 'eat-mode)
+                 (not (file-remote-p default-directory)))
+        (let ((process (get-buffer-process (current-buffer))))
+          (when (and process (process-live-p process)
+                     (integerp (process-id process)))
+            (let ((cwd (format "/proc/%d/cwd" (process-id process))))
+              (condition-case nil
+                  (when (file-directory-p cwd)
+                    (file-name-as-directory (file-truename cwd)))
+                (file-error nil))))))
+      default-directory))
+
 (defun my/open-file-selected ()
   "Open the selected file path and jump to its optional line number.
 The path comes from the active region, an Evil visual selection, or the
 most recent Evil visual selection when the command is invoked via
-`execute-extended-command'."
+`execute-extended-command'.  Resolve relative paths against the current
+Eat shell directory, or `default-directory' in other buffers."
   (interactive)
   (let* ((selection (my--selected-text))
          (selected-text (and selection (string-trim selection)))
@@ -61,6 +79,7 @@ most recent Evil visual selection when the command is invoked via
                 line line-number))))
     (unless file
       (setq file selected-text))
+    (setq file (expand-file-name file (my--selected-file-directory)))
     (unless (file-regular-p file)
       (user-error "Selected path is not a file: %s" file))
     (let ((buffer (find-file file)))
