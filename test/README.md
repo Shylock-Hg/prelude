@@ -72,3 +72,24 @@ The suite also enables `evil-mode` and verifies live-PTY cursor behavior;
 the implementation itself does not depend on Evil. Verified with GNU Emacs
 31.1, Evil 1.15.0 and vterm source revision
 `6d715a93fa0e5182bc137d4db09f376e06938aa5`.
+
+## Translation
+
+`personal/my-translate.el` installs the MELPA package `gt` at startup. Select
+text, then run `M-x my/translate-en2zh-selected` or
+`M-x my/translate-zh2en-selected`. Both commands also accept the last Evil
+visual selection when invoked through the extended-command minibuffer.
+Results appear in a separate gt buffer; the source buffer stays intact.
+Translation uses Google Translate and requires network access, with no API key.
+Missing or whitespace-only selections produce a user error.
+
+The regression tests use real gt taker, engine and render objects, but intercept
+`gt-start` before network requests. They check both directions, region and Evil
+marker selections, preservation of selected text, and invalid selections.
+`test/run-unit-tests.sh` runs them using the packages installed by Prelude.
+For a standalone run with gt and its pdd dependency on the load path:
+
+```sh
+emacs --batch -Q -L /path/to/gt.el -L /path/to/pdd.el -L personal \
+  -l test/my-translate-test.el -f ert-run-tests-batch-and-exit
+```

@@ -39,6 +39,7 @@
 (require 'my-gptel-autocomplete)
 
 ;; tools
+(require 'my-translate)
 (require 'my-sudo-edit)
 (require 'my-reader)
 (require 'my-gnus)

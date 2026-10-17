@@ -18,3 +18,10 @@ PRELUDE_EVIL_DIR="$evil_dir" PRELUDE_EAT_DIR="$eat_dir" \
     -l test/my-eat-test-bootstrap.el \
     -l test/my-eat-test.el \
     -f ert-run-tests-batch-and-exit
+
+PRELUDE_ELPA_DIR="$elpa_dir" emacs --batch -Q -L personal \
+  --eval '(require (quote package))' \
+  --eval '(setq package-user-dir (expand-file-name (getenv "PRELUDE_ELPA_DIR")))' \
+  --eval '(package-initialize)' \
+  -l test/my-translate-test.el \
+  -f ert-run-tests-batch-and-exit
