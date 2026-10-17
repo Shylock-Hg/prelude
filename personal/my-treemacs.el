@@ -48,7 +48,12 @@
 
 (use-package treemacs-magit
   :after (treemacs magit)
-  :ensure t)
+  :ensure t
+  :config
+  ;; Avoid git-commit's synchronous HEAD polling after closing the editor.
+  ;; Treemacs still refreshes through magit-post-commit-hook.
+  (remove-hook 'git-commit-post-finish-hook
+               #'treemacs-magit--schedule-update))
 
 ;;(use-package treemacs-persp ;;treemacs-perspective if you use perspective.el vs. persp-mode
   ;;:after (treemacs persp-mode) ;;or perspective vs. persp-mode
