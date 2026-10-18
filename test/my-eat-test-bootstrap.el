@@ -27,6 +27,7 @@
 (defun prelude-require-package (&rest _packages) nil)
 (provide 'prelude-packages)
 
+(my-eat-test-bootstrap--add-package-path "PRELUDE_GOTO_CHG_DIR" "goto-chg")
 (require 'evil)
 (require 'eat)
 (require 'server)

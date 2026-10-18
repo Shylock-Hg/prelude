@@ -20,7 +20,7 @@
 ;; Eat understands that sequence, but its bundled terminfo omits E3.
 ;; Compile a private copy so only programs running in Eat see it.
 (defvar my-eat-terminfo-directory
-  (expand-file-name ".cahce/eat-terminfo/" user-emacs-directory)
+  (expand-file-name ".cache/eat-terminfo/" user-emacs-directory)
   "Private terminfo directory for Eat terminals.")
 
 (defun my-eat--terminfo-source ()

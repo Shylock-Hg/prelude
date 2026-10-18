@@ -39,25 +39,46 @@ NAME describes the argument in the error message."
                      ""
                    (concat "\n" output))))))))
 
+(defun my-vendor--git (directory &rest arguments)
+  "Run Git ARGUMENTS in DIRECTORY, returning trimmed output or an error."
+  (with-temp-buffer
+    (unless (eq 0 (apply #'call-process "git" nil t nil
+                        "-C" directory arguments))
+      (error "Vendor Git failed: %s" (string-trim (buffer-string))))
+    (string-trim (buffer-string))))
+
+(defun my-vendor--check-revision (directory revision)
+  "Require DIRECTORY to be at the exact pinned REVISION."
+  (unless (equal (my-vendor--git directory "rev-parse" "HEAD") revision)
+    (error "Vendor %s differs from pin %s; move it aside and restart to reinstall"
+           directory revision)))
+
 (defun my-vendor--path-exists-p (path)
   "Return non-nil when PATH exists, including a dangling symbolic link."
   (or (file-exists-p path)
       (file-symlink-p path)))
 
-(defun my-vendor-install-git (host user repo)
+(defun my-vendor-install-git (host user repo &optional revision)
   "Clone HOST/USER/REPO into `my-vendor-dir' when it is not installed.
 
 Clone into a temporary sibling directory and move it into place only after
 Git succeeds.  Return t when a fresh clone is installed, or nil when the
 destination is already a directory.  Failed and interrupted clones remove
-only their own temporary staging directory."
+only their own temporary staging directory.  Optional REVISION must be a full
+40-character commit ID.  Existing installations must match it; they are never
+silently overwritten."
   (my-vendor--validate-string "Host" host)
   (my-vendor--validate-string "User" user)
   (my-vendor--validate-string "Repository" repo)
+  (when revision
+    (unless (and (stringp revision)
+                 (string-match-p "\\`[0-9a-f]\\{40\\}\\'" revision))
+      (error "Revision must be a full lowercase commit ID")))
   (let* ((url (concat "https://" host "/" user "/" repo ".git"))
          (dest (my-vendor-dest user repo)))
     (cond
      ((file-directory-p dest)
+      (when revision (my-vendor--check-revision dest revision))
       nil)
      ((my-vendor--path-exists-p dest)
       (error "Vendor destination already exists: %s" dest))
@@ -74,6 +95,10 @@ only their own temporary staging directory."
         (unwind-protect
             (progn
               (my-vendor--clone url staging)
+              (when revision
+                (my-vendor--git staging "fetch" "--depth=1" "origin" revision)
+                (my-vendor--git staging "checkout" "--detach" revision)
+                (my-vendor--check-revision staging revision))
               (when (my-vendor--path-exists-p dest)
                 (error "Vendor destination appeared during clone: %s" dest))
               ;; The default `rename-file' behavior refuses to replace a path

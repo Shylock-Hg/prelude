@@ -1,4 +1,18 @@
-# Terminal emulator regression tests
+# Personal configuration regression tests
+
+Run the complete unit suite from a clean checkout:
+
+```sh
+test/run-unit-tests.sh
+```
+
+The runner fetches the exact commits in [the dependency manifest](dependencies.txt)
+on its first run. Sources are cached under
+`${XDG_CACHE_HOME:-$HOME/.cache}/prelude/test-dependencies`; set
+`PRELUDE_TEST_DEPS_DIR` to override this location. Later runs reuse the cache
+without fetching. No Prelude startup or ELPA installation is needed.
+GNU Emacs, Git, `sh`, `tic`, `infocmp`, and `clear` must be installed.
+The graphical reader smoke still requires MuPDF and a graphical Emacs.
 
 The active terminal configuration uses Eat (`personal/my-eat.el`). The older
 vterm configuration (`personal/my-vterm.el`) is kept but no longer loaded
@@ -32,14 +46,16 @@ sessions and running a shell command. The terminfo test checks that `clear`
 emits the scrollback erase sequence and that a missing compiled entry is rebuilt.
 
 The suite needs GNU Emacs with Evil and Eat sources, plus `sh`, `tic`,
-`infocmp`, and `clear` on `PATH`. No dependencies are vendored here.
+`infocmp`, and `clear` on `PATH`. The runner fetches pinned sources into its
+dependency cache.
 
 From the repository root, set the package directories (each directory must
-contain `eat.el` or `evil.el`) and run:
+contain `eat.el`, `evil.el`, or `goto-chg.el`) and run:
 
 ```sh
 PRELUDE_EVIL_DIR=/path/to/evil \
 PRELUDE_EAT_DIR=/path/to/emacs-eat \
+PRELUDE_GOTO_CHG_DIR=/path/to/goto-chg \
 emacs --batch -Q \
   -l test/my-eat-test-bootstrap.el \
   -l test/my-eat-test.el \
@@ -86,10 +102,19 @@ Missing or whitespace-only selections produce a user error.
 The regression tests use real gt taker, engine and render objects, but intercept
 `gt-start` before network requests. They check both directions, region and Evil
 marker selections, preservation of selected text, and invalid selections.
-`test/run-unit-tests.sh` runs them using the packages installed by Prelude.
+`test/run-unit-tests.sh` runs them using the pinned gt and pdd sources.
 For a standalone run with gt and its pdd dependency on the load path:
 
 ```sh
 emacs --batch -Q -L /path/to/gt.el -L /path/to/pdd.el -L personal \
   -l test/my-translate-test.el -f ert-run-tests-batch-and-exit
 ```
+
+## Reader pin
+
+`my-reader-revision` in `personal/my-reader.el` pins the exact upstream commit.
+The GUI smoke asserts that same commit. To upgrade, change the pin and run
+`.github/scripts/reader-gui-smoke.el` with graphical Emacs and MuPDF installed.
+Existing reader checkouts at another revision produce an actionable error;
+move `vendor/divyaranjan/emacs-reader` aside and restart to clone and build the
+pin. Existing checkouts are preserved rather than reset over local changes.

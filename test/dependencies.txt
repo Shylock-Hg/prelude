@@ -1,0 +1,5 @@
+evil https://github.com/emacs-evil/evil 6a3e1ddd04ac504a016590940d0af2a3361b9efd
+eat https://codeberg.org/akib/emacs-eat c8d54d649872bfe7b2b9f49ae5c2addbf12d3b99
+gt https://github.com/lorniu/gt.el f9febd8583ea482f72139e02f440f3972502f5a2
+pdd https://github.com/lorniu/pdd.el 533e8fde36cb9fae1fae3bf44eb6dbf39ec10f53
+goto-chg https://github.com/emacs-evil/goto-chg 72f556524b88e9d30dc7fc5b0dc32078c166fda7

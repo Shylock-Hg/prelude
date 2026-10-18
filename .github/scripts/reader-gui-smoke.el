@@ -61,6 +61,9 @@
                    "could not read the cloned emacs-reader revision")
                   (string-trim (buffer-string))))
                (fit-called nil))
+          (prelude-reader-smoke-assert
+           (equal upstream-revision my-reader-revision)
+           "reader checkout must match the pinned commit")
           (prelude-reader-smoke-log "Testing emacs-reader revision %s"
                                     upstream-revision)
           (prelude-reader-smoke-assert (featurep 'reader)

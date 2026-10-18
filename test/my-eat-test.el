@@ -49,7 +49,7 @@
 (ert-deftest my-eat-clear-erases-scrollback ()
   "The private terminfo makes ncurses `clear' emit CSI 3 J."
   (should (equal my-eat-terminfo-directory
-                 (expand-file-name ".cahce/eat-terminfo/"
+                 (expand-file-name ".cache/eat-terminfo/"
                                    user-emacs-directory)))
   (skip-unless (and (executable-find "tic")
                     (executable-find "infocmp")

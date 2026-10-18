@@ -207,5 +207,48 @@
       (should-not (file-exists-p (expand-file-name "README" destination)))
       (should-not (file-exists-p staging)))))
 
+(ert-deftest my-vendor-install-git-pins-an-older-commit ()
+  ;; Real Git exercises fetching a commit outside the shallow clone's HEAD.
+  (my-vendor-test--with-repository
+    (let* ((source (expand-file-name "source" my-vendor-dir))
+           (clone (symbol-function 'my-vendor--clone))
+           revision)
+      (make-directory source)
+      (my-vendor--git source "init")
+      (my-vendor--git source "config" "user.email" "test@example.invalid")
+      (my-vendor--git source "config" "user.name" "Test")
+      (my-vendor-test--write-staged-file source "README" "pinned")
+      (my-vendor--git source "add" "README")
+      (my-vendor--git source "commit" "-m" "pinned")
+      (setq revision (my-vendor--git source "rev-parse" "HEAD"))
+      (my-vendor-test--write-staged-file source "README" "newer")
+      (my-vendor--git source "commit" "-am" "newer")
+      (cl-letf (((symbol-function 'my-vendor--clone)
+                 (lambda (_url staging)
+                   (funcall clone (concat "file://" source) staging))))
+        (should (my-vendor-install-git "git.example" user repo revision))
+        (should (equal (my-vendor--git destination "rev-parse" "HEAD") revision))
+        (should-not (my-vendor-install-git "git.example" user repo revision))
+        (should-error
+         (my-vendor-install-git "git.example" user repo
+                                (my-vendor--git source "rev-parse" "HEAD")))
+        (should (equal (my-vendor--git destination "rev-parse" "HEAD") revision))))))
+
+(ert-deftest my-vendor-install-git-cleans-up-an-unavailable-pin ()
+  (my-vendor-test--with-repository
+    (let (staging)
+      (cl-letf (((symbol-function 'my-vendor--clone)
+                 (lambda (_url directory) (setq staging directory)))
+                ((symbol-function 'my-vendor--git)
+                 (lambda (&rest _) (error "Unavailable revision"))))
+        (should-error (my-vendor-install-git "git.example" user repo
+                                            (make-string 40 ?a))))
+      (should-not (file-exists-p destination))
+      (should-not (file-exists-p staging)))))
+
+(ert-deftest my-vendor-install-git-rejects-non-commit-pins ()
+  (dolist (revision '("main" "abc123" "--help" 123))
+    (should-error (my-vendor-install-git "git.example" "user" "repo" revision))))
+
 (provide 'my-vendor-test)
 ;;; my-vendor-test.el ends here

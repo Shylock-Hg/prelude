@@ -3,10 +3,14 @@
 (require 'my-vendor)
 (require 'use-package)
 
+;; Update deliberately after running the graphical reader smoke test.
+(defconst my-reader-revision "3dddbef84e275d5e800641829d128c348b712a8d"
+  "Pinned emacs-reader commit used by interactive startup and GUI CI.")
+
 ;; The reader is a GUI document reader whose native module is built against
 ;; MuPDF.  Skip it entirely in noninteractive (batch/CI) sessions.
 (unless noninteractive
-  (defvar my-reader-fresh-installed (my-vendor-install-git "codeberg.org" "divyaranjan" "emacs-reader"))
+  (defvar my-reader-fresh-installed (my-vendor-install-git "codeberg.org" "divyaranjan" "emacs-reader" my-reader-revision))
 
   (defvar my-reader-dir (my-vendor-dest "divyaranjan" "emacs-reader"))
 
