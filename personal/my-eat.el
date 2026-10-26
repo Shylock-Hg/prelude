@@ -119,6 +119,133 @@ Eat itself uses."
         (getenv "ESHELL")
         shell-file-name))))
 
+(defun my-eat--get-shell-history (original hist format)
+  "Call ORIGINAL with HIST and FORMAT, guarding disabled shell history.
+Eat 0.9.4 treats an empty history path as the current directory and attempts
+to read it.  Acknowledge an empty or local directory path without reading it."
+  (let* ((host (and (consp hist)
+                    (ignore-errors (base64-decode-string (car hist)))))
+         (file (and (consp hist)
+                    (ignore-errors (base64-decode-string (cdr hist))))))
+    (if (and file (or (string-empty-p file)
+                      (and (equal host (system-name)) (file-directory-p file))))
+        (eat-term-send-string eat-terminal "\e]51;e;I;0\e\\")
+      (funcall original hist format))))
+
+(advice-add 'eat--get-shell-history :around #'my-eat--get-shell-history)
+
+(defvar my-eat-shell-init-directory
+  (expand-file-name ".cache/eat-shell/" user-emacs-directory)
+  "Directory for private Eat shell startup files.")
+
+(defun my-eat--shell-init-file (name contents)
+  "Write private startup file NAME with CONTENTS and return its path."
+  (make-directory my-eat-shell-init-directory t)
+  (let ((file (expand-file-name name my-eat-shell-init-directory)))
+    ;; Another freshly launched shell may still be reading this file.
+    (unless (and (file-readable-p file)
+                 (equal contents (with-temp-buffer
+                                   (insert-file-contents file)
+                                   (buffer-string))))
+      (with-temp-file file
+        (insert contents)))
+    file))
+
+(defun my-eat--interactive-shell-args-p (name args)
+  "Return non-nil for supported interactive NAME shell ARGS.
+Use an allowlist so scripts, positional arguments, command runners and
+options that disable startup files pass through without environment changes."
+  (let ((supported t))
+    (while (and args supported)
+      (let ((arg (pop args)))
+        (setq supported
+              (if (equal name "bash")
+                  (cond
+                   ((member arg '("--rcfile" "--init-file"))
+                    (and args (pop args) t))
+                   ((member arg '("--norc" "--noprofile")) t)
+                   (t (string-match-p "\\`-i+\\'" arg)))
+                (or (member arg '("--login" "--interactive"))
+                    (string-match-p "\\`-[il]+\\'" arg))))))
+    supported))
+
+(defun my-eat--integrated-shell (command)
+  "Return COMMAND with automatic Bash or Zsh integration when supported.
+Preserve user startup files.  Set launch-only variables in the caller's
+private `process-environment'; never modify the user's shell files.
+Arbitrary shell expressions, Bash login shells and command runners are passed
+through and may configure Eat integration themselves."
+  (let* ((words (split-string-and-unquote command))
+         (shell (car words))
+         (args (cdr words))
+         (name (and shell (file-name-nondirectory shell))))
+    (if (or (not (member name '("bash" "zsh")))
+            (not (my-eat--interactive-shell-args-p name args)))
+        command
+      (pcase name
+        ("bash"
+         (let ((rc (expand-file-name ".bashrc" (getenv "HOME")))
+               switches)
+           (while args
+             (let ((arg (pop args)))
+               (cond
+                ((equal arg "--norc") (setq rc ""))
+                ((member arg '("--rcfile" "--init-file"))
+                 (setq rc (or (pop args) "")))
+                (t (push arg switches)))))
+           (setenv "PRELUDE_EAT_BASHRC" rc)
+           (let ((init (my-eat--shell-init-file
+                        "bashrc"
+                        (concat
+                         "if [ -n \"$PRELUDE_EAT_BASHRC\" ] && [ -r \"$PRELUDE_EAT_BASHRC\" ]; then\n"
+                         "  . \"$PRELUDE_EAT_BASHRC\"\nfi\nunset PRELUDE_EAT_BASHRC\n"
+                         ". \"$EAT_SHELL_INTEGRATION_DIR/bash\"\n"))))
+             (mapconcat #'shell-quote-argument
+                        (append (list shell "--rcfile" init)
+                                (nreverse switches) '("-i")) " "))))
+        ("zsh"
+         (setenv "PRELUDE_EAT_ZDOTDIR" (or (getenv "ZDOTDIR") (getenv "HOME")))
+         (setenv "PRELUDE_EAT_INIT_DIR" my-eat-shell-init-directory)
+         (setenv "ZDOTDIR" my-eat-shell-init-directory)
+         (dolist (file '(".zshenv" ".zprofile" ".zshrc" ".zlogin"))
+           (my-eat--shell-init-file
+            file
+            (concat
+             "ZDOTDIR=$PRELUDE_EAT_ZDOTDIR\n"
+             "if [ -r \"$ZDOTDIR/" file "\" ]; then . \"$ZDOTDIR/" file "\"; fi\n"
+             (let ((finish
+                    (concat ". \"$EAT_SHELL_INTEGRATION_DIR/zsh\"\n"
+                            "unset PRELUDE_EAT_ZDOTDIR PRELUDE_EAT_INIT_DIR\n"))
+                   (continue
+                    (concat "export PRELUDE_EAT_ZDOTDIR=$ZDOTDIR\n"
+                            "export ZDOTDIR=$PRELUDE_EAT_INIT_DIR\n")))
+               (cond
+                ((equal file ".zlogin") finish)
+                ((equal file ".zshrc")
+                 (concat "if [[ -o login ]]; then\n" continue
+                         "else\n" finish "fi\n"))
+                (t continue))))))
+         (mapconcat #'shell-quote-argument (append words '("-i")) " "))))))
+
+(defun my-eat--exec-with-integration (original buffer name command startfile switches)
+  "Call ORIGINAL for BUFFER and NAME with automatic shell integration.
+Preserve STARTFILE and arbitrary COMMAND/SWITCHES invocations.  This also
+covers shells started through Eat's own entry points."
+  (let ((process-environment (copy-sequence process-environment)))
+    (if (and (equal (file-name-nondirectory command) "env")
+             (equal (seq-take switches 2) '("sh" "-c"))
+             (= (length switches) 3))
+        (funcall original buffer name command startfile
+                 (list "sh" "-c" (my-eat--integrated-shell (nth 2 switches))))
+      (let* ((plain (mapconcat #'shell-quote-argument (cons command switches) " "))
+             (integrated (my-eat--integrated-shell plain)))
+        (if (equal plain integrated)
+            (funcall original buffer name command startfile switches)
+          (funcall original buffer name "/usr/bin/env" startfile
+                   (list "sh" "-c" integrated)))))))
+
+(advice-add 'eat-exec :around #'my-eat--exec-with-integration)
+
 (defun my-eat--ensure-process (buffer)
   "Start an Eat shell in BUFFER unless it already runs one."
   (with-current-buffer buffer
@@ -259,6 +386,21 @@ Signal an error after one second rather than allowing another stale edit."
         (user-error "Eat did not confirm the terminal edit; wait for shell output"))
       (accept-process-output process 0.01))))
 
+(defun my-eat--drain-shell-output ()
+  "Drain queued terminal output and move point to the shell cursor."
+  (let ((process (get-buffer-process (current-buffer)))
+        (deadline (+ (float-time) 1.0)))
+    (when (process-live-p process)
+      (while
+          (progn
+            (when eat--pending-output-chunks
+              (eat--process-output-queue (current-buffer)))
+            (and (< (float-time) deadline)
+                 (accept-process-output process (max 0.033 eat-maximum-latency)))))
+      (when eat--pending-output-chunks
+        (eat--process-output-queue (current-buffer))))
+    (goto-char (eat-term-display-cursor eat-terminal))))
+
 (defun my-eat--self-input (original n &optional event)
   "Send EVENT N times through ORIGINAL and drain the shell's response.
 Process all queued output and wait for an idle output interval before
@@ -268,19 +410,20 @@ kill/yank and wrapping without predicting the shell's resulting input."
                           (bound-and-true-p evil-insert-state-minor-mode))))
     (prog1 (funcall original n event)
       (when (and synchronize (my-eat--terminal-editing-p))
-        (let ((process (get-buffer-process (current-buffer)))
-              (deadline (+ (float-time) 1.0)))
-          (when (process-live-p process)
-            (while
-                (progn
-                  (when eat--pending-output-chunks
-                    (eat--process-output-queue (current-buffer)))
-                  (and (< (float-time) deadline)
-                       (accept-process-output
-                        process (max 0.033 eat-maximum-latency)))))
-            (when eat--pending-output-chunks
-              (eat--process-output-queue (current-buffer))))
-          (goto-char (eat-term-display-cursor eat-terminal)))))))
+        (my-eat--drain-shell-output)))))
+
+(defun my-eat--evil-append-line (original count &optional vcount)
+  "Append COUNT times at the shell input end, or call ORIGINAL with VCOUNT.
+Use the shell's End binding rather than rendered trailing display blanks."
+  (if (not (my-eat--terminal-editing-p))
+      (funcall original count vcount)
+    (unless (my-eat--editable-position-p (eat-term-display-cursor eat-terminal))
+      (user-error "Eat appending requires a known shell prompt"))
+    (when vcount
+      (user-error "Eat appending supports a single input line"))
+    (eat-term-input-event eat-terminal 1 ?\C-e)
+    (my-eat--drain-shell-output)
+    (evil-insert count)))
 
 (advice-add 'eat-self-input :around #'my-eat--self-input)
 
@@ -343,7 +486,9 @@ Only characterwise ranges on the current terminal line are supported."
         (evil-yank beg end type register yank-handler))
       (my-eat--move-terminal-cursor beg)
       (dotimes (_ (length text))
-        (eat-term-input-event eat-terminal 1 'delete))
+        ;; Both Readline and Zsh's default ZLE map bind C-d to forward
+        ;; deletion; ZLE does not necessarily bind the Delete escape code.
+        (eat-term-input-event eat-terminal 1 ?\C-d))
       (my-eat--await-edit (concat before after) (length before))
       (goto-char (eat-term-display-cursor eat-terminal)))))
 
@@ -351,6 +496,7 @@ Only characterwise ranges on the current terminal line are supported."
   (add-hook 'evil-insert-state-entry-hook #'my-eat--evil-insert-entry)
   (advice-add 'evil-delete :around #'my-eat--evil-delete)
   (advice-add 'evil-change :around #'my-eat--evil-change)
+  (advice-add 'evil-append-line :around #'my-eat--evil-append-line)
   (evil-set-initial-state 'eat-mode 'insert)
   (define-key evil-normal-state-map (kbd my-eat-toggle-key) #'my/eat-toggle)
   (evil-define-key 'insert eat-mode-map

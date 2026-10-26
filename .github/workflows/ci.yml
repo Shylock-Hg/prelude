@@ -20,7 +20,7 @@ jobs:
           done
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            ca-certificates git nodejs emacs-gtk xvfb xauth build-essential \
+            ca-certificates git nodejs zsh emacs-gtk xvfb xauth build-essential \
             pkg-config libmupdf-dev
           mupdf_package_version=$(dpkg-query -W -f='${Version}' libmupdf-dev)
           dpkg --compare-versions "$mupdf_package_version" ge 1.26

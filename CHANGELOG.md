@@ -43,6 +43,8 @@
 
 ### Bugs fixed
 
+- [#52](https://forgejo.shylockhg.me/shylock/prelude/issues/52): Enable shell integration automatically for Eat Bash and Zsh sessions, preserving user startup files, and make forward deletion and append-to-input-end work with Zsh's default editor.
+
 - [#52](https://forgejo.shylockhg.me/shylock/prelude/issues/52): Synchronize Evil insertion and characterwise deletion with the shell cursor in Eat buffers, including consecutive edits, wide characters, prompt boundary protection through shell integration, and delete-register semantics.
 
 - [PR 1433](https://github.com/bbatsov/prelude/pull/1433): Remove a duplicate `when` call in `modules/prelude-helm-everywhere.el` causing an emacs init error when `prelude-helm-everywhere` is enabled.

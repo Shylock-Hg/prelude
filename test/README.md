@@ -53,8 +53,20 @@ right terminal edge, primary and continuation prompt protection, insertion
 before wide characters, deletion of and across wide characters, prompt-
 crossing ranges, and the yank and small-delete registers.
 
-Direct terminal edits require Eat shell integration to identify the input
-boundary. For Bash, add this to `.bashrc` (Eat sets the directory variable):
+`my/eat-toggle`, `my/eat-new`, and Eat's own entry points automatically enable
+shell integration for interactive Bash and Zsh, including login Zsh. Private
+startup wrappers under `.cache/eat-shell/` load the user's `.bashrc` or Zsh
+startup files before Eat integration. Existing shell files and Emacs's
+environment are unchanged; Zsh's configured `ZDOTDIR` is preserved. The
+startup tests exercise both session commands with temporary user configuration
+and no manual integration command, then verify insertion, deletion and
+executed results.
+
+Restart existing terminal sessions after updating so they use these launchers.
+Bash login shells, Zsh with startup files disabled, arbitrary shell command
+expressions and other shells retain their configured launch command and need
+shell integration configured separately. For a custom Bash launcher, put this
+at the end of its startup file:
 
 ```sh
 [ -n "$EAT_SHELL_INTEGRATION_DIR" ] && . "$EAT_SHELL_INTEGRATION_DIR/bash"
@@ -73,7 +85,8 @@ them; a timeout invalidates the input boundary until the next integrated
 prompt. Eat line mode retains ordinary Emacs/Evil editing.
 
 The suite needs GNU Emacs with Evil and Eat sources, plus `bash`, `sh`, `tic`,
-`infocmp`, and `clear` on `PATH`. The runner fetches pinned sources into its
+`infocmp`, and `clear` on `PATH`. Zsh startup checks also run when `zsh` is
+available (CI installs it). The runner fetches pinned sources into its
 dependency cache.
 
 From the repository root, set the package directories (each directory must

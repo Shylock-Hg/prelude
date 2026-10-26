@@ -227,10 +227,8 @@ The NonGNU ELPA 0.9.4 package does not define
       (my-eat-test--kill-terminal eat-buffer-name))))
 
 
-(defun my-eat-test--enable-integration (process)
-  "Enable Eat's Bash integration and wait for a known prompt from PROCESS."
-  (eat-term-send-string
-   eat-terminal "source \"$EAT_SHELL_INTEGRATION_DIR/bash\"\r")
+(defun my-eat-test--wait-for-integration (process)
+  "Wait for automatically enabled shell integration from PROCESS."
   (let ((deadline (+ (float-time) my-eat-test--timeout)))
     (while (and (not (and (markerp my-eat--input-start)
                          (marker-position my-eat--input-start)))
@@ -251,7 +249,7 @@ The NonGNU ELPA 0.9.4 package does not define
                  (process (get-buffer-process buffer)))
             (unless (my-eat-test--wait-for-text buffer process my-eat-test--bash-prompt)
               (ert-fail (buffer-string)))
-            (my-eat-test--enable-integration process)
+            (my-eat-test--wait-for-integration process)
             (eat-term-send-string eat-terminal "printf 'RESULT:acXd\\n'")
             (should (my-eat-test--wait-for-text buffer process "RESULT:acXd"))
             (execute-kbd-macro (kbd "<escape>"))
@@ -329,7 +327,7 @@ The NonGNU ELPA 0.9.4 package does not define
             (my/eat-toggle)
             (let ((process (get-buffer-process (current-buffer))))
               (should (my-eat-test--wait-for-text (current-buffer) process my-eat-test--bash-prompt))
-              (my-eat-test--enable-integration process)
+              (my-eat-test--wait-for-integration process)
               (eat-term-send-string eat-terminal
                                     (format "printf 'RESULT:%s\\n'" (nth 0 case)))
               (should (my-eat-test--wait-for-text
@@ -357,7 +355,7 @@ The NonGNU ELPA 0.9.4 package does not define
           (my/eat-toggle)
           (let ((process (get-buffer-process (current-buffer))))
             (should (my-eat-test--wait-for-text (current-buffer) process my-eat-test--bash-prompt))
-            (my-eat-test--enable-integration process)
+            (my-eat-test--wait-for-integration process)
             (eat-term-send-string eat-terminal "printf 'RESULT:abcdef\\n'")
             (should (my-eat-test--wait-for-text (current-buffer) process "RESULT:abcdef"))
             (execute-kbd-macro (kbd "<escape>"))
@@ -396,7 +394,7 @@ The NonGNU ELPA 0.9.4 package does not define
           (my/eat-toggle)
           (let ((process (get-buffer-process (current-buffer))))
             (should (my-eat-test--wait-for-text (current-buffer) process my-eat-test--bash-prompt))
-            (my-eat-test--enable-integration process)
+            (my-eat-test--wait-for-integration process)
             (eat-term-send-string eat-terminal "printf 'RESULT:abc\r")
             (should (my-eat-test--wait-for-text (current-buffer) process "\n> "))
             (eat-term-send-string eat-terminal "def'")
@@ -432,9 +430,12 @@ The NonGNU ELPA 0.9.4 package does not define
           (my/eat-toggle)
           (let ((process (get-buffer-process (current-buffer))))
             (should (my-eat-test--wait-for-text (current-buffer) process my-eat-test--bash-prompt))
-            (my-eat-test--enable-integration process)
-            (eat-term-send-string eat-terminal "printf 'RESULT:")
-            (should (my-eat-test--wait-for-text (current-buffer) process "RESULT:"))
+            (my-eat-test--wait-for-integration process)
+            ;; Split the output prefix from the payload in the command so
+            ;; only executed output can match RESULT:<payload>.  Eat may
+            ;; join a wrapped display boundary before that output.
+            (eat-term-send-string eat-terminal "printf '%s%s\\n' 'RESULT:' '")
+            (should (my-eat-test--wait-for-text (current-buffer) process "'RESULT:' '"))
             (let ((first-line (line-number-at-pos
                                (eat-term-display-cursor eat-terminal))))
               (execute-kbd-macro (concat payload "'"))
@@ -442,8 +443,9 @@ The NonGNU ELPA 0.9.4 package does not define
                           (eat-term-display-cursor eat-terminal)) first-line)))
             (should (marker-position my-eat--input-start))
             (execute-kbd-macro (kbd "<return>"))
-            (should (my-eat-test--wait-for-text
-                     (current-buffer) process (concat "\nRESULT:" payload)))))
+            (unless (my-eat-test--wait-for-text
+                     (current-buffer) process (concat "RESULT:" payload))
+              (ert-fail (my-eat--text (point-min) (point-max))))))
       (my-eat-test--kill-terminal eat-buffer-name))))
 
 (ert-deftest my-eat-shell-completion-and-kill-remain-editable ()
@@ -458,7 +460,7 @@ The NonGNU ELPA 0.9.4 package does not define
             (let ((process (get-buffer-process (current-buffer))))
               (should (my-eat-test--wait-for-text
                        (current-buffer) process my-eat-test--bash-prompt))
-              (my-eat-test--enable-integration process)
+              (my-eat-test--wait-for-integration process)
               (eat-term-send-string eat-terminal "printen")
               (should (my-eat-test--wait-for-text (current-buffer) process "printen"))
               (if (eq event 'completion)
@@ -489,7 +491,7 @@ The NonGNU ELPA 0.9.4 package does not define
           (let ((process (get-buffer-process (current-buffer))))
             (should (my-eat-test--wait-for-text
                      (current-buffer) process my-eat-test--bash-prompt))
-            (my-eat-test--enable-integration process)
+            (my-eat-test--wait-for-integration process)
             (eat-term-send-string eat-terminal
                                   (concat "printf 'RESULT:abcdef" payload "\\n'"))
             (should (my-eat-test--wait-for-text
@@ -511,5 +513,155 @@ The NonGNU ELPA 0.9.4 package does not define
                      (current-buffer) process
                      (concat "\nRESULT:abcdef" (make-string 98 ?x) "\n")))))
       (my-eat-test--kill-terminal eat-buffer-name))))
+
+(defun my-eat-test--automatic-startup (shell &optional login direct)
+  "Check startup for SHELL with optional LOGIN and Eat's DIRECT entry point."
+  (let* ((default-directory (expand-file-name default-directory))
+         (home (make-temp-file "my eat home " t))
+         (config (expand-file-name "zsh config" home))
+         (my-eat-shell-init-directory (expand-file-name "launcher" home))
+         (eat-shell (concat shell (if login " -l" "")))
+         (eat-buffer-name "*my-eat-auto-integration-test*")
+         (process-environment (copy-sequence process-environment))
+         (parent-bashrc (getenv "PRELUDE_EAT_BASHRC")))
+    (setenv "HOME" home)
+    (make-directory config)
+    (setenv "ZDOTDIR" config)
+    (with-temp-file (expand-file-name ".bashrc" home)
+      (insert "export PRELUDE_EAT_TEST_STARTUP=loaded\nPS1='AUTO> '\n"))
+    (with-temp-file (expand-file-name ".zshenv" config)
+      ;; A locally extracted Zsh package can be tested without installing it.
+      (when-let* ((prefix (getenv "PRELUDE_TEST_ZSH_PREFIX")))
+        (insert "module_path=(" (shell-quote-argument
+                                 (expand-file-name "lib/zsh/5.9.2" prefix))
+                " $module_path)\nfpath=("
+                (shell-quote-argument (expand-file-name "share/zsh/functions/Misc" prefix))
+                " $fpath)\n"))
+      (insert "export PRELUDE_EAT_TEST_ENV=env-loaded\n"))
+    (with-temp-file (expand-file-name ".zprofile" config)
+      (insert "export PRELUDE_EAT_TEST_PROFILE=profile-loaded\n"))
+    (with-temp-file (expand-file-name ".zshrc" config)
+      (insert "export PRELUDE_EAT_TEST_STARTUP=loaded\nPS1='AUTO> '\n"))
+    (with-temp-file (expand-file-name ".zlogin" config)
+      (insert "PS1='LOGIN> '\nexport PRELUDE_EAT_TEST_LOGIN=$PRELUDE_EAT_TEST_STARTUP\n"))
+    (unwind-protect
+        (progn
+          (if direct (pop-to-buffer (eat eat-shell)) (my/eat-toggle))
+          (let ((process (get-buffer-process (current-buffer))))
+            (my-eat-test--wait-for-integration process)
+            (when login
+              (should (my-eat-test--wait-for-text
+                       (current-buffer) process "LOGIN> ")))
+            (eat-term-send-string eat-terminal "printf 'RESULT:acXd\\n'")
+            (should (my-eat-test--wait-for-text (current-buffer) process "RESULT:acXd"))
+            (execute-kbd-macro (kbd "<escape>"))
+            (goto-char my-eat--input-start)
+            (search-forward "RESULT:a")
+            (execute-kbd-macro (kbd "i b <escape>"))
+            (goto-char my-eat--input-start)
+            (search-forward "RESULT:abc")
+            (execute-kbd-macro (kbd "x A <return>"))
+            (should (my-eat-test--wait-for-text (current-buffer) process "\nRESULT:abcd\n")))
+          ;; New sessions must also be integrated, and load the user's rc.
+          (my/eat-new)
+          (let ((process (get-buffer-process (current-buffer))))
+            (my-eat-test--wait-for-integration process)
+            (eat-term-send-string
+             eat-terminal "printf 'STARTUP:%s\\n' \"$PRELUDE_EAT_TEST_STARTUP\"\r")
+            (should (my-eat-test--wait-for-text
+                     (current-buffer) process "\nSTARTUP:loaded\n"))
+            (when (equal (file-name-nondirectory shell) "zsh")
+              (eat-term-send-string eat-terminal
+                                    "printf 'CONFIG:%s:%s\\n' \"$PRELUDE_EAT_TEST_ENV\" \"$ZDOTDIR\"\r")
+              (should (my-eat-test--wait-for-text
+                       (current-buffer) process (concat "\nCONFIG:env-loaded:" config "\n")))))
+          (when login
+            (eat-term-send-string eat-terminal
+                                  "printf 'PROFILE:%s:%s\\n' \"$PRELUDE_EAT_TEST_PROFILE\" \"$PRELUDE_EAT_TEST_LOGIN\"\r")
+            (should (my-eat-test--wait-for-text
+                     (current-buffer) (get-buffer-process (current-buffer))
+                     "\nPROFILE:profile-loaded:loaded\n")))
+          (should (equal (getenv "ZDOTDIR") config))
+          (should (equal (getenv "PRELUDE_EAT_BASHRC") parent-bashrc)))
+      (dolist (buffer (my-eat--buffers))
+        (when (string-prefix-p eat-buffer-name (buffer-name buffer))
+          (my-eat-test--kill-terminal (buffer-name buffer))))
+      (delete-directory home t))))
+
+(ert-deftest my-eat-bash-startup-enables-integration ()
+  "The regular Bash launcher integrates toggle/new sessions without setup."
+  (skip-unless (executable-find "bash"))
+  (my-eat-test--automatic-startup (executable-find "bash")))
+
+(ert-deftest my-eat-zsh-startup-enables-integration ()
+  "The regular Zsh launcher integrates sessions and preserves ZDOTDIR files."
+  (skip-unless (executable-find "zsh"))
+  (my-eat-test--automatic-startup (executable-find "zsh")))
+
+(ert-deftest my-eat-zsh-login-startup-enables-integration ()
+  "A Zsh login shell loads its profile and rc before automatic integration."
+  (skip-unless (executable-find "zsh"))
+  (my-eat-test--automatic-startup (executable-find "zsh") t))
+
+(ert-deftest my-eat-standard-entry-enables-integration ()
+  "Eat's own entry point also integrates the shell without manual setup."
+  (skip-unless (executable-find "bash"))
+  (my-eat-test--automatic-startup (executable-find "bash") nil t))
+
+(ert-deftest my-eat-unsupported-shell-args-preserve-environment ()
+  "Unsupported and startup-disabled invocations retain command and environment."
+  (dolist (command '("zsh -fi" "zsh -if" "zsh --no-rcs"
+                     "zsh -o NO_RCS" "zsh +o RCS" "zsh -d"
+                     "zsh script wanted" "zsh -i -- script wanted"
+                     "bash script wanted" "bash -- script wanted"
+                     "bash -c true" "bash -l"))
+    (let ((process-environment (copy-sequence process-environment)))
+      (setenv "ZDOTDIR" "/original/config")
+      (let ((before (copy-sequence process-environment)))
+        (should (equal command (my-eat--integrated-shell command)))
+        (should (equal before process-environment))))))
+
+(ert-deftest my-eat-script-exec-preserves-argv ()
+  "Scripts launched through eat-exec receive exactly the requested arguments."
+  (dolist (shell '("bash" "zsh"))
+    (when (executable-find shell)
+      (let ((script (make-temp-file "my-eat-script-"))
+            (buffer (generate-new-buffer "*my-eat-script-test*")))
+        (unwind-protect
+            (progn
+              (with-temp-file script
+                (insert "printf 'ARG:<%s>\\n' \"$@\"\n"))
+              (with-current-buffer buffer
+                (eat-mode)
+                (eat-exec buffer "script-test" (executable-find shell)
+                          nil (list script "wanted" "two words"))
+                (let ((process (get-buffer-process buffer)))
+                  (should (my-eat-test--wait-for-text
+                           buffer process "ARG:<two words>"))
+                  (while (process-live-p process)
+                    (accept-process-output process 0.01))
+                  (when eat--pending-output-chunks
+                    (eat--process-output-queue buffer))
+                  (let ((text (my-eat--text (point-min) (point-max))))
+                    (should (string-match-p "ARG:<wanted>" text))
+                    (should (= 2 (cl-count ?< text)))))))
+          (my-eat-test--kill-terminal (buffer-name buffer))
+          (delete-file script))))))
+
+(ert-deftest my-eat-disabled-history-does-not-read-a-directory ()
+  "Empty and directory history paths are acknowledged without a read error."
+  (let ((directory (make-temp-file "my-eat-history-" t)))
+    (unwind-protect
+        (with-temp-buffer
+          (eat-mode)
+          (dolist (file (list "" directory))
+            (let (responses)
+              (cl-letf (((symbol-function 'eat-term-send-string)
+                         (lambda (_terminal text) (push text responses))))
+                (eat--get-shell-history
+                 (cons (base64-encode-string (system-name) t)
+                       (base64-encode-string file t)) "bash"))
+              (should (equal responses '("\e]51;e;I;0\e\\"))))))
+      (delete-directory directory t))))
 
 ;;; my-eat-test.el ends here
