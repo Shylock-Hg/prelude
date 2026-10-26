@@ -45,7 +45,34 @@ for Emacs inside Eat, and a real PTY survives toggling, opening several
 sessions and running a shell command. The terminfo test checks that `clear`
 emits the scrollback erase sequence and that a missing compiled entry is rebuilt.
 
-The suite needs GNU Emacs with Evil and Eat sources, plus `sh`, `tic`,
+Evil `i`, `a`, `A`, `x`, `X`, counted deletion and change operators are
+checked against a live Bash command, including its executed result. Regression
+coverage includes insert-then-delete and delete-then-insert macros without
+output waits, Backspace-then-type and Left-then-type macros, typing across the
+right terminal edge, primary and continuation prompt protection, insertion
+before wide characters, deletion of and across wide characters, prompt-
+crossing ranges, and the yank and small-delete registers.
+
+Direct terminal edits require Eat shell integration to identify the input
+boundary. For Bash, add this to `.bashrc` (Eat sets the directory variable):
+
+```sh
+[ -n "$EAT_SHELL_INTEGRATION_DIR" ] && . "$EAT_SHELL_INTEGRATION_DIR/bash"
+```
+
+Edits support characterwise ranges after the known prompt on the terminal
+cursor's buffer line. Prompt text, unknown input boundaries, scrollback and
+linewise deletions report a user error. Returning to Insert state from
+scrollback resumes at the live terminal cursor. Shell input drains queued
+output until it is idle for at least 33 milliseconds (or Eat's configured
+maximum latency), with a one-second cap during continuous output. This uses
+the actual terminal response, allowing completion, history, kill/yank and
+wrapped typing without predicting their contents. Explicit Evil cursor
+movement and deletion wait up to one second for the shell's display to confirm
+them; a timeout invalidates the input boundary until the next integrated
+prompt. Eat line mode retains ordinary Emacs/Evil editing.
+
+The suite needs GNU Emacs with Evil and Eat sources, plus `bash`, `sh`, `tic`,
 `infocmp`, and `clear` on `PATH`. The runner fetches pinned sources into its
 dependency cache.
 

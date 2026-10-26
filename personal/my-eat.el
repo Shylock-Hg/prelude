@@ -190,7 +190,167 @@ while hidden."
   (when (fboundp 'evil-collection-eat-setup)
     (evil-collection-eat-setup)))
 
+(defun my-eat--terminal-editing-p ()
+  "Return non-nil when Evil edits a live Eat terminal directly."
+  (and (derived-mode-p 'eat-mode) eat-terminal
+       (or eat--semi-char-mode eat--char-mode)))
+
+(defun my-eat--same-terminal-line-p (position)
+  "Return non-nil if POSITION is on the terminal cursor's buffer line."
+  (let ((cursor (eat-term-display-cursor eat-terminal)))
+    (save-excursion
+      (goto-char cursor)
+      (<= (line-beginning-position) position (line-end-position)))))
+
+(defvar-local my-eat--input-start nil
+  "Marker at the editable input boundary reported by Eat shell integration.")
+
+(defun my-eat--remember-input-start (&rest _ignored)
+  "Record the shell integration's prompt end as the input boundary."
+  (setq my-eat--input-start (copy-marker (point))))
+
+(defun my-eat--forget-input-start (&rest _ignored)
+  "Invalidate the input boundary when a command or a new prompt starts."
+  (when (markerp my-eat--input-start)
+    (set-marker my-eat--input-start nil)))
+
+(advice-add 'eat--post-prompt :after #'my-eat--remember-input-start)
+(advice-add 'eat--post-cont-prompt :after #'my-eat--remember-input-start)
+(advice-add 'eat--pre-prompt :before #'my-eat--forget-input-start)
+(advice-add 'eat--pre-cmd :before #'my-eat--forget-input-start)
+
+(defun my-eat--editable-position-p (position)
+  "Return non-nil when POSITION is a known editable terminal position."
+  (and (markerp my-eat--input-start)
+       (eq (marker-buffer my-eat--input-start) (current-buffer))
+       (<= my-eat--input-start position)
+       (my-eat--same-terminal-line-p position)))
+
+(defun my-eat--text (beg end)
+  "Return terminal text between BEG and END without hidden cell padding."
+  (let ((inhibit-read-only t))
+    (substring-no-properties
+     (eat-term-filter-string (buffer-substring beg end)))))
+
+(defun my-eat--await-edit (text offset)
+  "Wait for logical input TEXT and character cursor OFFSET to be displayed.
+Flush Eat's queued output so subsequent macro commands see the new cursor.
+Signal an error after one second rather than allowing another stale edit."
+  (let ((process (get-buffer-process (current-buffer)))
+        (deadline (+ (float-time) 1.0)))
+    (while
+        (progn
+          (when eat--pending-output-chunks
+            (eat--process-output-queue (current-buffer)))
+          (not (save-excursion
+                 (goto-char (eat-term-display-cursor eat-terminal))
+                 (and (markerp my-eat--input-start)
+                      (marker-position my-eat--input-start)
+                      ;; Readline may paint blanks after the logical input
+                      ;; when deleting and reflowing wrapped terminal rows.
+                      (equal (string-trim-right text " +")
+                             (string-trim-right
+                              (my-eat--text my-eat--input-start
+                                            (eat-term-end eat-terminal)) " +"))
+                      (= offset (length (my-eat--text
+                                         my-eat--input-start (point))))))))
+      (unless (and (process-live-p process) (< (float-time) deadline))
+        (my-eat--forget-input-start)
+        (user-error "Eat did not confirm the terminal edit; wait for shell output"))
+      (accept-process-output process 0.01))))
+
+(defun my-eat--self-input (original n &optional event)
+  "Send EVENT N times through ORIGINAL and drain the shell's response.
+Process all queued output and wait for an idle output interval before
+returning point to the terminal cursor.  This handles completion, history,
+kill/yank and wrapping without predicting the shell's resulting input."
+  (let ((synchronize (and (my-eat--terminal-editing-p)
+                          (bound-and-true-p evil-insert-state-minor-mode))))
+    (prog1 (funcall original n event)
+      (when (and synchronize (my-eat--terminal-editing-p))
+        (let ((process (get-buffer-process (current-buffer)))
+              (deadline (+ (float-time) 1.0)))
+          (when (process-live-p process)
+            (while
+                (progn
+                  (when eat--pending-output-chunks
+                    (eat--process-output-queue (current-buffer)))
+                  (and (< (float-time) deadline)
+                       (accept-process-output
+                        process (max 0.033 eat-maximum-latency)))))
+            (when eat--pending-output-chunks
+              (eat--process-output-queue (current-buffer))))
+          (goto-char (eat-term-display-cursor eat-terminal)))))))
+
+(advice-add 'eat-self-input :around #'my-eat--self-input)
+
+(defun my-eat--move-terminal-cursor (position)
+  "Send arrow keys to move the terminal cursor to editable POSITION."
+  (unless (my-eat--editable-position-p position)
+    (user-error "Eat editing requires shell integration and a position after the prompt"))
+  (let* ((cursor (eat-term-display-cursor eat-terminal))
+         (distance (* (if (< position cursor) -1 1)
+                      (length (my-eat--text (min position cursor)
+                                            (max position cursor)))))
+         (text (my-eat--text my-eat--input-start (eat-term-end eat-terminal)))
+         (offset (length (my-eat--text my-eat--input-start position))))
+    (dotimes (_ (abs distance))
+      (eat-term-input-event eat-terminal 1
+                            (if (< distance 0) 'left 'right)))
+    (my-eat--await-edit text offset)))
+
+(defvar my-eat--changing nil
+  "Non-nil while an Evil change operator already positions Eat's cursor.")
+
+(defun my-eat--evil-change (original &rest arguments)
+  "Call ORIGINAL with ARGUMENTS without aligning Eat twice."
+  (let ((my-eat--changing (my-eat--terminal-editing-p)))
+    (apply original arguments)))
+
+(defun my-eat--evil-insert-entry ()
+  "Align the shell cursor with Evil's insertion point in Eat.
+When returning from scrollback, resume input at the terminal cursor."
+  (when (and (my-eat--terminal-editing-p) (not my-eat--changing))
+    (cond
+     ((= (point) (eat-term-display-cursor eat-terminal)))
+     ((my-eat--same-terminal-line-p (point))
+      (my-eat--move-terminal-cursor (point)))
+     (t (goto-char (eat-term-display-cursor eat-terminal))))))
+
+(defun my-eat--evil-delete (original beg end type &optional register yank-handler)
+  "Send Evil deletion from BEG to END to Eat, or call ORIGINAL.
+TYPE, REGISTER and YANK-HANDLER retain their usual Evil meanings.
+Only characterwise ranges on the current terminal line are supported."
+  (if (not (my-eat--terminal-editing-p))
+      (funcall original beg end type register yank-handler)
+    ;; Eat puts invisible padding BEFORE a wide glyph.  An Evil motion may
+    ;; start there; deleting that displayed character must include the glyph.
+    (when (and (> end beg)
+               (get-text-property beg 'eat--t-invisible-space))
+      (setq beg (next-single-property-change
+                 beg 'eat--t-invisible-space nil (point-max))
+            end (max end (1+ beg))))
+    (unless (and (memq type '(inclusive exclusive))
+                 (my-eat--editable-position-p beg)
+                 (my-eat--editable-position-p end))
+      (user-error "Eat deletion requires a characterwise range after a known prompt"))
+    (let* ((text (my-eat--text beg end))
+           (before (my-eat--text my-eat--input-start beg))
+           (after (my-eat--text end (eat-term-end eat-terminal))))
+      (unless register
+        (evil-set-register ?- text))
+      (let ((evil-was-yanked-without-register nil))
+        (evil-yank beg end type register yank-handler))
+      (my-eat--move-terminal-cursor beg)
+      (dotimes (_ (length text))
+        (eat-term-input-event eat-terminal 1 'delete))
+      (my-eat--await-edit (concat before after) (length before))
+      (goto-char (eat-term-display-cursor eat-terminal)))))
+
 (with-eval-after-load 'evil
+  (add-hook 'evil-insert-state-entry-hook #'my-eat--evil-insert-entry)
+  (advice-add 'evil-delete :around #'my-eat--evil-delete)
+  (advice-add 'evil-change :around #'my-eat--evil-change)
   (evil-set-initial-state 'eat-mode 'insert)
   (define-key evil-normal-state-map (kbd my-eat-toggle-key) #'my/eat-toggle)
   (evil-define-key 'insert eat-mode-map

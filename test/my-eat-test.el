@@ -19,6 +19,10 @@
 (defconst my-eat-test--timeout 5.0
   "Seconds to wait for a terminal process to produce output.")
 
+(defconst my-eat-test--bash-prompt
+  (if (zerop (user-uid)) "# " "$ ")
+  "Default Bash prompt suffix for the user running the tests.")
+
 (defun my-eat-test--wait-for-text (buffer process text)
   "Wait up to `my-eat-test--timeout' for TEXT in BUFFER."
   (let ((deadline (+ (float-time) my-eat-test--timeout))
@@ -27,7 +31,10 @@
       (with-current-buffer buffer
         (save-excursion
           (goto-char (point-min))
-          (setq found (search-forward text nil t))))
+          (setq found (string-match-p
+                       (regexp-quote text)
+                       (let ((inhibit-read-only t))
+                         (eat-term-filter-string (buffer-string)))))))
       (unless found
         (accept-process-output process 0.05)))
     found))
@@ -217,6 +224,292 @@ The NonGNU ELPA 0.9.4 package does not define
               (eat-term-send-string eat-terminal "\r"))
             (should (my-eat-test--wait-for-text
                      buffer (get-buffer-process buffer) "MYEAT_HELLO"))))
+      (my-eat-test--kill-terminal eat-buffer-name))))
+
+
+(defun my-eat-test--enable-integration (process)
+  "Enable Eat's Bash integration and wait for a known prompt from PROCESS."
+  (eat-term-send-string
+   eat-terminal "source \"$EAT_SHELL_INTEGRATION_DIR/bash\"\r")
+  (let ((deadline (+ (float-time) my-eat-test--timeout)))
+    (while (and (not (and (markerp my-eat--input-start)
+                         (marker-position my-eat--input-start)))
+                (< (float-time) deadline))
+      (accept-process-output process 0.01)))
+  (should (and (markerp my-eat--input-start)
+               (marker-position my-eat--input-start))))
+
+(ert-deftest my-eat-evil-edits-the-shell-input ()
+  "Evil insertion and deletion change the command executed by a real shell."
+  (skip-unless (executable-find "bash"))
+  (let ((eat-buffer-name "*my-eat-edit-test*")
+        (eat-shell "bash --noprofile --norc -i"))
+    (unwind-protect
+        (progn
+          (my/eat-toggle)
+          (let* ((buffer (current-buffer))
+                 (process (get-buffer-process buffer)))
+            (unless (my-eat-test--wait-for-text buffer process my-eat-test--bash-prompt)
+              (ert-fail (buffer-string)))
+            (my-eat-test--enable-integration process)
+            (eat-term-send-string eat-terminal "printf 'RESULT:acXd\\n'")
+            (should (my-eat-test--wait-for-text buffer process "RESULT:acXd"))
+            (execute-kbd-macro (kbd "<escape>"))
+            (goto-char (point-min))
+            (search-forward "RESULT:a")
+            (execute-kbd-macro (kbd "i b"))
+            (should (my-eat-test--wait-for-text buffer process "RESULT:abcXd"))
+            (execute-kbd-macro (kbd "<escape>"))
+            (goto-char (point-min))
+            (search-forward "RESULT:abc")
+            (execute-kbd-macro (kbd "x"))
+            (should (my-eat-test--wait-for-text buffer process "RESULT:abcd"))
+            (execute-kbd-macro (kbd "<escape>"))
+            (goto-char (point-min))
+            (search-forward "RESULT:")
+            (execute-kbd-macro (kbd "a Q"))
+            (should (my-eat-test--wait-for-text buffer process "RESULT:aQbcd"))
+            (execute-kbd-macro (kbd "<escape>"))
+            (goto-char (point-min))
+            (search-forward "RESULT:aQ")
+            (execute-kbd-macro (kbd "X"))
+            (should (my-eat-test--wait-for-text buffer process "RESULT:abcd"))
+            (goto-char (point-min))
+            (search-forward "RESULT:a")
+            (execute-kbd-macro (kbd "2 x"))
+            (should (my-eat-test--wait-for-text buffer process "RESULT:ad"))
+            (goto-char (point-min))
+            (search-forward "RESULT:a")
+            (execute-kbd-macro (kbd "c l z"))
+            (should (my-eat-test--wait-for-text buffer process "RESULT:az"))
+            (execute-kbd-macro (kbd "<escape> A <return>"))
+            (should (my-eat-test--wait-for-text buffer process "RESULT:az\n"))
+            (should (string-match-p "\nRESULT:az\n" (buffer-string)))))
+      (my-eat-test--kill-terminal eat-buffer-name))))
+
+(ert-deftest my-eat-evil-delete-preserves-ordinary-buffers ()
+  "Terminal deletion advice leaves ordinary Evil editing intact."
+  (with-temp-buffer
+    (insert "abcd")
+    (evil-delete 2 4 'exclusive)
+    (should (equal (buffer-string) "ad"))))
+
+(ert-deftest my-eat-evil-delete-rejects-scrollback-and-linewise-ranges ()
+  "Unsupported terminal deletions never change the terminal display."
+  (with-temp-buffer
+    (eat-mode)
+    (setq eat-terminal (eat-term-make (current-buffer) (point-min)))
+    (let ((inhibit-read-only t))
+      (eat-term-process-output eat-terminal "old output\r\n$ input")
+      (eat-term-redisplay eat-terminal))
+    (eat-semi-char-mode)
+    (let ((text (buffer-string)))
+      (should-error (evil-delete (point-min) (1+ (point-min)) 'exclusive)
+                    :type 'user-error)
+      (should-error (evil-delete (line-beginning-position) (point-max) 'line)
+                    :type 'user-error)
+      (should (equal (buffer-string) text)))))
+
+(ert-deftest my-eat-evil-regressions-live-shell ()
+  "Consecutive edits, wide characters, prompts and registers work in Bash."
+  (skip-unless (executable-find "bash"))
+  (dolist (case '(("abcdef" "RESULT:a" "x x" "adef")
+                  ("abcdef" "RESULT:a" "i Z <backspace> Y <escape>" "aYbcdef")
+                  ("abcdef" "RESULT:a" "i <left> Z <escape>" "Zabcdef")
+                  ("abcdef" "RESULT:a" "i Z <escape> x" "abcdef")
+                  ("abcdef" "RESULT:a" "i Z Z <escape> h 2 x" "abcdef")
+                  ("abcdef" "RESULT:a" "x i Z <escape>" "aZcdef")
+                  ("a中bcd" "RESULT:" "i Z <escape>" "Za中bcd")
+                  ("a中bcd" "RESULT:a" "d l" "abcd")
+                  ("a中bcd" "RESULT:" "d 4 l" "cd")))
+    (let ((eat-buffer-name "*my-eat-regression-test*")
+          (eat-shell "bash --noprofile --norc -i"))
+      (unwind-protect
+          (progn
+            (my/eat-toggle)
+            (let ((process (get-buffer-process (current-buffer))))
+              (should (my-eat-test--wait-for-text (current-buffer) process my-eat-test--bash-prompt))
+              (my-eat-test--enable-integration process)
+              (eat-term-send-string eat-terminal
+                                    (format "printf 'RESULT:%s\\n'" (nth 0 case)))
+              (should (my-eat-test--wait-for-text
+                       (current-buffer) process (concat "RESULT:" (nth 0 case))))
+              (execute-kbd-macro (kbd "<escape>"))
+              (goto-char my-eat--input-start)
+              (search-forward (nth 1 case))
+              (condition-case err
+                  (execute-kbd-macro (kbd (nth 2 case)))
+                (error (ert-fail (list case err my-eat--input-start
+                                      (buffer-substring (line-beginning-position)
+                                                        (line-end-position))))))
+              (eat-term-send-string eat-terminal "\r")
+              (should (my-eat-test--wait-for-text
+                       (current-buffer) process (concat "\nRESULT:" (nth 3 case) "\n")))))
+        (my-eat-test--kill-terminal eat-buffer-name)))))
+
+(ert-deftest my-eat-evil-prompt-and-register-regressions ()
+  "Prompt edits fail without input or register changes; deletes preserve 0."
+  (skip-unless (executable-find "bash"))
+  (let ((eat-buffer-name "*my-eat-boundary-test*")
+        (eat-shell "bash --noprofile --norc -i"))
+    (unwind-protect
+        (progn
+          (my/eat-toggle)
+          (let ((process (get-buffer-process (current-buffer))))
+            (should (my-eat-test--wait-for-text (current-buffer) process my-eat-test--bash-prompt))
+            (my-eat-test--enable-integration process)
+            (eat-term-send-string eat-terminal "printf 'RESULT:abcdef\\n'")
+            (should (my-eat-test--wait-for-text (current-buffer) process "RESULT:abcdef"))
+            (execute-kbd-macro (kbd "<escape>"))
+            (evil-set-register ?0 "saved-yank")
+            (evil-set-register ?- "saved-small-delete")
+            (let ((text (buffer-string)))
+              (dolist (keys '("0 x" "d 0" "0 i"))
+                (goto-char my-eat--input-start)
+                (search-forward "RESULT:a")
+                (let (events)
+                  (cl-letf (((symbol-function 'eat-term-input-event)
+                             (lambda (&rest args) (push args events))))
+                    (should-error (execute-kbd-macro (kbd keys)) :type 'user-error))
+                  (should-not events))
+                (should (equal (buffer-string) text))
+                (should (equal (evil-get-register ?0) "saved-yank"))
+                (should (equal (evil-get-register ?-) "saved-small-delete"))
+                (evil-normal-state)))
+            (goto-char my-eat--input-start)
+            (search-forward "RESULT:a")
+            (execute-kbd-macro (kbd "x"))
+            (should (equal (evil-get-register ?0) "saved-yank"))
+            (should (equal (evil-get-register ?-) "b"))
+            (eat-term-send-string eat-terminal "\r")
+            (should (my-eat-test--wait-for-text
+                     (current-buffer) process "\nRESULT:acdef\n"))))
+      (my-eat-test--kill-terminal eat-buffer-name))))
+
+(ert-deftest my-eat-evil-continuation-prompt-regression ()
+  "Continuation prompt edits fail before changing registers or sending input."
+  (skip-unless (executable-find "bash"))
+  (let ((eat-buffer-name "*my-eat-continuation-test*")
+        (eat-shell "bash --noprofile --norc -i"))
+    (unwind-protect
+        (progn
+          (my/eat-toggle)
+          (let ((process (get-buffer-process (current-buffer))))
+            (should (my-eat-test--wait-for-text (current-buffer) process my-eat-test--bash-prompt))
+            (my-eat-test--enable-integration process)
+            (eat-term-send-string eat-terminal "printf 'RESULT:abc\r")
+            (should (my-eat-test--wait-for-text (current-buffer) process "\n> "))
+            (eat-term-send-string eat-terminal "def'")
+            (should (my-eat-test--wait-for-text (current-buffer) process "> def'"))
+            (execute-kbd-macro (kbd "<escape>"))
+            (evil-set-register ?0 "saved-yank")
+            (evil-set-register ?- "saved-small-delete")
+            (let ((text (buffer-string)))
+              (dolist (keys '("0 x" "d 0" "0 i"))
+                (goto-char (eat-term-display-cursor eat-terminal))
+                (let (events)
+                  (cl-letf (((symbol-function 'eat-term-input-event)
+                             (lambda (&rest args) (push args events))))
+                    (should-error (execute-kbd-macro (kbd keys)) :type 'user-error))
+                  (should-not events))
+                (should (equal (buffer-string) text))
+                (should (equal (evil-get-register ?0) "saved-yank"))
+                (should (equal (evil-get-register ?-) "saved-small-delete"))
+                (evil-normal-state)))
+            (eat-term-send-string eat-terminal "\r")
+            (should (my-eat-test--wait-for-text
+                     (current-buffer) process "\nRESULT:abc\ndef"))))
+      (my-eat-test--kill-terminal eat-buffer-name))))
+
+(ert-deftest my-eat-typing-wraps-without-invalidating-input ()
+  "Ordinary typing can cross the terminal edge and execute a long command."
+  (skip-unless (executable-find "bash"))
+  (let ((eat-buffer-name "*my-eat-wrap-test*")
+        (eat-shell "bash --noprofile --norc -i")
+        (payload (make-string 100 ?x)))
+    (unwind-protect
+        (progn
+          (my/eat-toggle)
+          (let ((process (get-buffer-process (current-buffer))))
+            (should (my-eat-test--wait-for-text (current-buffer) process my-eat-test--bash-prompt))
+            (my-eat-test--enable-integration process)
+            (eat-term-send-string eat-terminal "printf 'RESULT:")
+            (should (my-eat-test--wait-for-text (current-buffer) process "RESULT:"))
+            (let ((first-line (line-number-at-pos
+                               (eat-term-display-cursor eat-terminal))))
+              (execute-kbd-macro (concat payload "'"))
+              (should (> (line-number-at-pos
+                          (eat-term-display-cursor eat-terminal)) first-line)))
+            (should (marker-position my-eat--input-start))
+            (execute-kbd-macro (kbd "<return>"))
+            (should (my-eat-test--wait-for-text
+                     (current-buffer) process (concat "\nRESULT:" payload)))))
+      (my-eat-test--kill-terminal eat-buffer-name))))
+
+(ert-deftest my-eat-shell-completion-and-kill-remain-editable ()
+  "Completion and kill input synchronize without predicting shell contents."
+  (skip-unless (and (executable-find "bash") (executable-find "printenv")))
+  (dolist (event '(completion kill))
+    (let ((eat-buffer-name "*my-eat-unpredicted-test*")
+          (eat-shell "bash --noprofile --norc -i"))
+      (unwind-protect
+          (progn
+            (my/eat-toggle)
+            (let ((process (get-buffer-process (current-buffer))))
+              (should (my-eat-test--wait-for-text
+                       (current-buffer) process my-eat-test--bash-prompt))
+              (my-eat-test--enable-integration process)
+              (eat-term-send-string eat-terminal "printen")
+              (should (my-eat-test--wait-for-text (current-buffer) process "printen"))
+              (if (eq event 'completion)
+                  (execute-kbd-macro (kbd "<tab> H <escape>"))
+                (eat-self-input 1 21)
+                (execute-kbd-macro (kbd "H <escape>")))
+              (should (marker-position my-eat--input-start))
+              (should (equal (my-eat--text my-eat--input-start
+                                          (eat-term-end eat-terminal))
+                             (if (eq event 'completion) "printenv H" "H")))
+              ;; Normal-state point is on H; deleting it must still work.
+              (execute-kbd-macro (kbd "x"))
+              (should (marker-position my-eat--input-start))
+              (should (equal (my-eat--text my-eat--input-start
+                                          (eat-term-end eat-terminal))
+                             (if (eq event 'completion) "printenv " "")))))
+        (my-eat-test--kill-terminal eat-buffer-name)))))
+
+(ert-deftest my-eat-deletion-reflows-a-wrapped-command ()
+  "Deleting within a non-final row preserves the prompt and further editing."
+  (skip-unless (executable-find "bash"))
+  (let ((eat-buffer-name "*my-eat-reflow-test*")
+        (eat-shell "bash --noprofile --norc -i")
+        (payload (make-string 100 ?x)))
+    (unwind-protect
+        (progn
+          (my/eat-toggle)
+          (let ((process (get-buffer-process (current-buffer))))
+            (should (my-eat-test--wait-for-text
+                     (current-buffer) process my-eat-test--bash-prompt))
+            (my-eat-test--enable-integration process)
+            (eat-term-send-string eat-terminal
+                                  (concat "printf 'RESULT:abcdef" payload "\\n'"))
+            (should (my-eat-test--wait-for-text
+                     (current-buffer) process (concat "RESULT:abcdef" payload)))
+            (eat-self-input 70 'left)
+            (should (< (line-number-at-pos
+                        (eat-term-display-cursor eat-terminal))
+                       (line-number-at-pos (eat-term-end eat-terminal))))
+            (execute-kbd-macro (kbd "<escape> x"))
+            (should (marker-position my-eat--input-start))
+            (should (equal (string-trim-right
+                            (my-eat--text my-eat--input-start
+                                          (eat-term-end eat-terminal)))
+                           (concat "printf 'RESULT:abcdef" (make-string 99 ?x) "\\n'")))
+            (execute-kbd-macro (kbd "x"))
+            (should (marker-position my-eat--input-start))
+            (eat-term-send-string eat-terminal "\r")
+            (should (my-eat-test--wait-for-text
+                     (current-buffer) process
+                     (concat "\nRESULT:abcdef" (make-string 98 ?x) "\n")))))
       (my-eat-test--kill-terminal eat-buffer-name))))
 
 ;;; my-eat-test.el ends here
