@@ -514,8 +514,10 @@ The NonGNU ELPA 0.9.4 package does not define
                      (concat "\nRESULT:abcdef" (make-string 98 ?x) "\n")))))
       (my-eat-test--kill-terminal eat-buffer-name))))
 
-(defun my-eat-test--automatic-startup (shell &optional login direct)
-  "Check startup for SHELL with optional LOGIN and Eat's DIRECT entry point."
+(defun my-eat-test--automatic-startup
+    (shell &optional login direct dynamic right-prompt end-wrapper vi-mode)
+  "Check SHELL startup with LOGIN, DIRECT entry and DYNAMIC hooks.
+Enable optional RIGHT-PROMPT, a public END-WRAPPER widget and VI-MODE."
   (let* ((default-directory (expand-file-name default-directory))
          (home (make-temp-file "my eat home " t))
          (config (expand-file-name "zsh config" home))
@@ -528,7 +530,13 @@ The NonGNU ELPA 0.9.4 package does not define
     (make-directory config)
     (setenv "ZDOTDIR" config)
     (with-temp-file (expand-file-name ".bashrc" home)
-      (insert "export PRELUDE_EAT_TEST_STARTUP=loaded\nPS1='AUTO> '\n"))
+      (insert "export PRELUDE_EAT_TEST_STARTUP=loaded\nPS1='AUTO> '\n")
+      (when dynamic
+        (insert "PROMPT_COMMAND=\"PS1='THEME> '\"\n"))
+      (when vi-mode
+        (insert "set -o vi\n"
+                "starship_precmd() { PS1=$'\\n\\[\\e[1;36m\\]~\\[\\e[0m\\] via Python\\n\\[\\e[1;32m\\] > \\[\\e[0m\\]'; }\n"
+                "PROMPT_COMMAND=starship_precmd\n")))
     (with-temp-file (expand-file-name ".zshenv" config)
       ;; A locally extracted Zsh package can be tested without installing it.
       (when-let* ((prefix (getenv "PRELUDE_TEST_ZSH_PREFIX")))
@@ -541,7 +549,17 @@ The NonGNU ELPA 0.9.4 package does not define
     (with-temp-file (expand-file-name ".zprofile" config)
       (insert "export PRELUDE_EAT_TEST_PROFILE=profile-loaded\n"))
     (with-temp-file (expand-file-name ".zshrc" config)
-      (insert "export PRELUDE_EAT_TEST_STARTUP=loaded\nPS1='AUTO> '\n"))
+      (insert "export PRELUDE_EAT_TEST_STARTUP=loaded\nPS1='AUTO> '\n")
+      (when dynamic
+        (insert "precmd() { PS1='THEME> '; }\n"))
+      (when right-prompt
+        (insert "RPS1='RIGHT'\n"))
+      (when vi-mode
+        (insert "bindkey -v\n"))
+      (when end-wrapper
+        ;; Model a plugin whose public end-of-line widget accepts text.
+        (insert "accept_suggestion() { BUFFER+=UNWANTED; zle .end-of-line; }\n"
+                "zle -N end-of-line accept_suggestion\n")))
     (with-temp-file (expand-file-name ".zlogin" config)
       (insert "PS1='LOGIN> '\nexport PRELUDE_EAT_TEST_LOGIN=$PRELUDE_EAT_TEST_STARTUP\n"))
     (unwind-protect
@@ -552,16 +570,34 @@ The NonGNU ELPA 0.9.4 package does not define
             (when login
               (should (my-eat-test--wait-for-text
                        (current-buffer) process "LOGIN> ")))
-            (eat-term-send-string eat-terminal "printf 'RESULT:acXd\\n'")
-            (should (my-eat-test--wait-for-text (current-buffer) process "RESULT:acXd"))
-            (execute-kbd-macro (kbd "<escape>"))
-            (goto-char my-eat--input-start)
-            (search-forward "RESULT:a")
-            (execute-kbd-macro (kbd "i b <escape>"))
-            (goto-char my-eat--input-start)
-            (search-forward "RESULT:abc")
-            (execute-kbd-macro (kbd "x A <return>"))
-            (should (my-eat-test--wait-for-text (current-buffer) process "\nRESULT:abcd\n")))
+            (when right-prompt
+              (should (my-eat-test--wait-for-text
+                       (current-buffer) process "RIGHT")))
+            (when end-wrapper
+              (should my-eat--native-edit-bindings))
+            (dolist (label (if dynamic '("RESULT" "AGAIN") '("RESULT")))
+              (my-eat-test--wait-for-integration process)
+              (eat-term-send-string
+               eat-terminal (format "printf '%s:acXd\\n'" label))
+              (should (my-eat-test--wait-for-text
+                       (current-buffer) process (concat label ":acXd")))
+              (execute-kbd-macro (kbd "<escape>"))
+              (goto-char my-eat--input-start)
+              (search-forward (concat label ":a"))
+              (execute-kbd-macro (kbd "i b <escape>"))
+              (goto-char my-eat--input-start)
+              (search-forward (concat label ":abc"))
+              (execute-kbd-macro (kbd "x A <return>"))
+              (should (my-eat-test--wait-for-text
+                       (current-buffer) process
+                       (concat "\n" label ":abcd\n")))))
+          (when (and vi-mode (equal (file-name-nondirectory shell) "bash"))
+            (eat-term-send-string
+             eat-terminal
+             "if [[ -o emacs && ! -o vi ]]; then printf 'MODE:%s\\n' emacs; fi\r")
+            (should (my-eat-test--wait-for-text
+                     (current-buffer) (get-buffer-process (current-buffer))
+                     "\nMODE:emacs\n")))
           ;; New sessions must also be integrated, and load the user's rc.
           (my/eat-new)
           (let ((process (get-buffer-process (current-buffer))))
@@ -602,6 +638,38 @@ The NonGNU ELPA 0.9.4 package does not define
   "A Zsh login shell loads its profile and rc before automatic integration."
   (skip-unless (executable-find "zsh"))
   (my-eat-test--automatic-startup (executable-find "zsh") t))
+
+(ert-deftest my-eat-bash-dynamic-prompt-enables-editing ()
+  "Prompt commands replacing PS1 preserve integration across commands."
+  (skip-unless (executable-find "bash"))
+  (my-eat-test--automatic-startup (executable-find "bash") nil nil t))
+
+(ert-deftest my-eat-zsh-dynamic-prompt-enables-editing ()
+  "Zsh prompt hooks replacing PS1 preserve integration across commands."
+  (skip-unless (executable-find "zsh"))
+  (my-eat-test--automatic-startup (executable-find "zsh") nil nil t))
+
+(ert-deftest my-eat-zsh-right-prompt-remains-editable ()
+  "Right prompt display must not be mistaken for editable command text."
+  (skip-unless (executable-find "zsh"))
+  (my-eat-test--automatic-startup (executable-find "zsh") nil nil t t))
+
+(ert-deftest my-eat-zsh-end-widget-does-not-accept-suggestions ()
+  "Internal End requests bypass plugins wrapping the public ZLE widget."
+  (skip-unless (executable-find "zsh"))
+  (my-eat-test--automatic-startup (executable-find "zsh") nil nil t t t))
+
+(ert-deftest my-eat-bash-disables-vi-with-multiline-prompt ()
+  "Eat selects Bash Emacs mode after an rc enables vi with a multiline prompt."
+  (skip-unless (executable-find "bash"))
+  (my-eat-test--automatic-startup
+   (executable-find "bash") nil nil t nil nil t))
+
+(ert-deftest my-eat-zsh-vi-prompt-remains-editable ()
+  "Zsh vi insertion mode supports Evil edits with a right prompt."
+  (skip-unless (executable-find "zsh"))
+  (my-eat-test--automatic-startup
+   (executable-find "zsh") nil nil t t nil t))
 
 (ert-deftest my-eat-standard-entry-enables-integration ()
   "Eat's own entry point also integrates the shell without manual setup."

@@ -169,6 +169,49 @@ options that disable startup files pass through without environment changes."
                     (string-match-p "\\`-[il]+\\'" arg))))))
     supported))
 
+(defun my-eat--prompt-refresh-script (shell)
+  "Return SHELL code restoring Eat markers after prompt theme hooks.
+Eat wraps prompts once during initialization.  Themes may replace them
+before every prompt, so restore missing markers without wrapping twice."
+  (if (equal shell "bash")
+      "__prelude_eat_refresh_prompt () {
+  local start='\\[\\e]51;e;B\\e\\\\\\]' end='\\[\\e]51;e;C\\e\\\\\\]'
+  local cont_start='\\[\\e]51;e;D\\e\\\\\\]' cont_end='\\[\\e]51;e;E\\e\\\\\\]'
+  case $PS1 in *\"$start\"*) ;; *) PS1=\"$start$PS1$end\";; esac
+  case $PS2 in *\"$cont_start\"*) ;; *) PS2=\"$cont_start$PS2$cont_end\";; esac
+}
+PROMPT_COMMAND+=(__prelude_eat_refresh_prompt)
+"
+    "__prelude_eat_refresh_prompt () {
+  local start=$(printf '%%{\\033]51;e;B\\033\\\\%%}')
+  local end=$(printf '%%{\\033]51;e;C\\033\\\\%%}')
+  local cont_start=$(printf '%%{\\033]51;e;D\\033\\\\%%}')
+  local cont_end=$(printf '%%{\\033]51;e;E\\033\\\\%%}')
+  case $PS1 in *\"$start\"*) ;; *) PS1=\"$start$PS1$end\";; esac
+  case $PS2 in *\"$cont_start\"*) ;; *) PS2=\"$cont_start$PS2$cont_end\";; esac
+}
+add-zsh-hook precmd __prelude_eat_refresh_prompt
+"))
+
+(defun my-eat--edit-bindings-script (shell)
+  "Return SHELL code configuring terminal editing.
+Bash uses Emacs bindings so Evil can send conventional control keys.
+Zsh keeps its editing mode and uses private native widget bindings."
+  (if (equal shell "bash")
+      ;; Run after the user's rc, which may select Readline's vi mode.
+      "set -o emacs\n"
+    "__prelude_eat_end_of_line () { zle .end-of-line; }
+__prelude_eat_delete_char () { zle .delete-char; }
+zle -N __prelude_eat_end_of_line
+zle -N __prelude_eat_delete_char
+for __prelude_eat_map in emacs viins; do
+  bindkey -M \"$__prelude_eat_map\" '\\e[997~' __prelude_eat_end_of_line
+  bindkey -M \"$__prelude_eat_map\" '\\e[998~' __prelude_eat_delete_char
+done
+unset __prelude_eat_map
+_eat_msg prelude-edit-bindings
+"))
+
 (defun my-eat--integrated-shell (command)
   "Return COMMAND with automatic Bash or Zsh integration when supported.
 Preserve user startup files.  Set launch-only variables in the caller's
@@ -199,7 +242,9 @@ through and may configure Eat integration themselves."
                         (concat
                          "if [ -n \"$PRELUDE_EAT_BASHRC\" ] && [ -r \"$PRELUDE_EAT_BASHRC\" ]; then\n"
                          "  . \"$PRELUDE_EAT_BASHRC\"\nfi\nunset PRELUDE_EAT_BASHRC\n"
-                         ". \"$EAT_SHELL_INTEGRATION_DIR/bash\"\n"))))
+                         (my-eat--prompt-refresh-script "bash")
+                         ". \"$EAT_SHELL_INTEGRATION_DIR/bash\"\n"
+                         (my-eat--edit-bindings-script "bash")))))
              (mapconcat #'shell-quote-argument
                         (append (list shell "--rcfile" init)
                                 (nreverse switches) '("-i")) " "))))
@@ -215,6 +260,8 @@ through and may configure Eat integration themselves."
              "if [ -r \"$ZDOTDIR/" file "\" ]; then . \"$ZDOTDIR/" file "\"; fi\n"
              (let ((finish
                     (concat ". \"$EAT_SHELL_INTEGRATION_DIR/zsh\"\n"
+                            (my-eat--prompt-refresh-script "zsh")
+                            (my-eat--edit-bindings-script "zsh")
                             "unset PRELUDE_EAT_ZDOTDIR PRELUDE_EAT_INIT_DIR\n"))
                    (continue
                     (concat "export PRELUDE_EAT_ZDOTDIR=$ZDOTDIR\n"
@@ -231,6 +278,8 @@ through and may configure Eat integration themselves."
   "Call ORIGINAL for BUFFER and NAME with automatic shell integration.
 Preserve STARTFILE and arbitrary COMMAND/SWITCHES invocations.  This also
 covers shells started through Eat's own entry points."
+  (with-current-buffer (get-buffer-create buffer)
+    (kill-local-variable 'my-eat--native-edit-bindings))
   (let ((process-environment (copy-sequence process-environment)))
     (if (and (equal (file-name-nondirectory command) "env")
              (equal (seq-take switches 2) '("sh" "-c"))
@@ -359,32 +408,64 @@ while hidden."
     (substring-no-properties
      (eat-term-filter-string (buffer-substring beg end)))))
 
-(defun my-eat--await-edit (text offset)
-  "Wait for logical input TEXT and character cursor OFFSET to be displayed.
-Flush Eat's queued output so subsequent macro commands see the new cursor.
-Signal an error after one second rather than allowing another stale edit."
+(defvar-local my-eat--native-edit-bindings nil
+  "Non-nil when the shell has installed Prelude's native edit bindings.")
+
+(defun my-eat--enable-native-edit-bindings ()
+  "Record the shell's acknowledgement of its private edit bindings."
+  (setq my-eat--native-edit-bindings t))
+
+(add-to-list 'eat-message-handler-alist
+             '("prelude-edit-bindings" . my-eat--enable-native-edit-bindings))
+
+(defun my-eat--send-edit-key (operation)
+  "Send native editing OPERATION, either `end' or `delete', to the shell.
+Private keys bypass public widget wrappers and work in vi insertion mode.
+Fall back to conventional control keys in shells without these bindings."
+  (if my-eat--native-edit-bindings
+      (eat-term-send-string eat-terminal
+                            (if (eq operation 'end) "\e[997~" "\e[998~"))
+    (eat-term-input-event eat-terminal 1
+                          (if (eq operation 'end) ?\C-e ?\C-d))))
+
+(defun my-eat--await-edit (prefix)
+  "Wait until the shell cursor follows logical input PREFIX.
+Only inspect text before the cursor: right prompts and suggestions after it
+are display decorations, not part of the editable command.  Callers send
+End first when they need to confirm the entire input."
   (let ((process (get-buffer-process (current-buffer)))
         (deadline (+ (float-time) 1.0)))
     (while
         (progn
           (when eat--pending-output-chunks
             (eat--process-output-queue (current-buffer)))
-          (not (save-excursion
-                 (goto-char (eat-term-display-cursor eat-terminal))
-                 (and (markerp my-eat--input-start)
-                      (marker-position my-eat--input-start)
-                      ;; Readline may paint blanks after the logical input
-                      ;; when deleting and reflowing wrapped terminal rows.
-                      (equal (string-trim-right text " +")
-                             (string-trim-right
-                              (my-eat--text my-eat--input-start
-                                            (eat-term-end eat-terminal)) " +"))
-                      (= offset (length (my-eat--text
-                                         my-eat--input-start (point))))))))
+          (not (and (markerp my-eat--input-start)
+                    (marker-position my-eat--input-start)
+                    (<= my-eat--input-start
+                        (eat-term-display-cursor eat-terminal))
+                    (equal prefix
+                           (my-eat--text
+                            my-eat--input-start
+                            (eat-term-display-cursor eat-terminal))))))
       (unless (and (process-live-p process) (< (float-time) deadline))
         (my-eat--forget-input-start)
         (user-error "Eat did not confirm the terminal edit; wait for shell output"))
       (accept-process-output process 0.01))))
+
+(defun my-eat--input-text ()
+  "Ask the shell for its input end and return the editable command text.
+Restore the original cursor after reading.  Using the shell cursor excludes
+right prompts, suggestions and blank cells left behind by redisplay."
+  (let ((prefix (my-eat--text my-eat--input-start
+                              (eat-term-display-cursor eat-terminal))))
+    (my-eat--send-edit-key 'end)
+    (my-eat--drain-shell-output)
+    (let ((input (my-eat--text my-eat--input-start
+                               (eat-term-display-cursor eat-terminal))))
+      (dotimes (_ (max 0 (- (length input) (length prefix))))
+        (eat-term-input-event eat-terminal 1 'left))
+      (my-eat--await-edit prefix)
+      input)))
 
 (defun my-eat--drain-shell-output ()
   "Drain queued terminal output and move point to the shell cursor."
@@ -421,7 +502,7 @@ Use the shell's End binding rather than rendered trailing display blanks."
       (user-error "Eat appending requires a known shell prompt"))
     (when vcount
       (user-error "Eat appending supports a single input line"))
-    (eat-term-input-event eat-terminal 1 ?\C-e)
+    (my-eat--send-edit-key 'end)
     (my-eat--drain-shell-output)
     (evil-insert count)))
 
@@ -435,12 +516,11 @@ Use the shell's End binding rather than rendered trailing display blanks."
          (distance (* (if (< position cursor) -1 1)
                       (length (my-eat--text (min position cursor)
                                             (max position cursor)))))
-         (text (my-eat--text my-eat--input-start (eat-term-end eat-terminal)))
-         (offset (length (my-eat--text my-eat--input-start position))))
+         (prefix (my-eat--text my-eat--input-start position)))
     (dotimes (_ (abs distance))
       (eat-term-input-event eat-terminal 1
                             (if (< distance 0) 'left 'right)))
-    (my-eat--await-edit text offset)))
+    (my-eat--await-edit prefix)))
 
 (defvar my-eat--changing nil
   "Non-nil while an Evil change operator already positions Eat's cursor.")
@@ -479,17 +559,29 @@ Only characterwise ranges on the current terminal line are supported."
       (user-error "Eat deletion requires a characterwise range after a known prompt"))
     (let* ((text (my-eat--text beg end))
            (before (my-eat--text my-eat--input-start beg))
-           (after (my-eat--text end (eat-term-end eat-terminal))))
+           (end-offset (length (my-eat--text my-eat--input-start end)))
+           (input (my-eat--input-text))
+           (after (progn
+                    (unless (<= end-offset (length input))
+                      (user-error "Eat deletion extends beyond the shell input"))
+                    (substring input end-offset))))
       (unless register
         (evil-set-register ?- text))
       (let ((evil-was-yanked-without-register nil))
         (evil-yank beg end type register yank-handler))
       (my-eat--move-terminal-cursor beg)
       (dotimes (_ (length text))
-        ;; Both Readline and Zsh's default ZLE map bind C-d to forward
-        ;; deletion; ZLE does not necessarily bind the Delete escape code.
-        (eat-term-input-event eat-terminal 1 ?\C-d))
-      (my-eat--await-edit (concat before after) (length before))
+        (my-eat--send-edit-key 'delete))
+      ;; Confirm the whole command at the shell's logical End, then
+      ;; return to the deletion point for the next Evil command.
+      (my-eat--send-edit-key 'end)
+      ;; At the last character the pre-delete cursor already has the
+      ;; expected offset.  Drain the response before accepting that prefix.
+      (my-eat--drain-shell-output)
+      (my-eat--await-edit (concat before after))
+      (dotimes (_ (length after))
+        (eat-term-input-event eat-terminal 1 'left))
+      (my-eat--await-edit before)
       (goto-char (eat-term-display-cursor eat-terminal)))))
 
 (with-eval-after-load 'evil
