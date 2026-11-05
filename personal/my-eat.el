@@ -16,6 +16,11 @@
 (prelude-require-package 'eat)
 (require 'eat)
 
+;; Eat 0.9.4 can accumulate duplicate prompt annotation overlays and its
+;; cleanup timer can fail on deleted overlays, making redisplay very slow.
+;; Keep shell integration, but omit the decorative prompt status marks.
+(setq eat-enable-shell-prompt-annotation nil)
+
 ;; ncurses `clear' sends E3 (CSI 3 J) when the terminal advertises it.
 ;; Eat understands that sequence, but its bundled terminfo omits E3.
 ;; Compile a private copy so only programs running in Eat see it.
