@@ -9,7 +9,7 @@
 
 ;; require tinymist typst-lsp in PATH
 
-(treesit-install-language-grammar 'typst)
+(my-tree-sitter-ensure-grammar 'typst)
 
 ;; tinymist
 (with-eval-after-load 'eglot

@@ -14,7 +14,7 @@
 (require 'rust-mode)
 (require 'my-tree-sitter)
 
-(treesit-install-language-grammar 'rust)
+(my-tree-sitter-ensure-grammar 'rust)
 
 ;; You may need to install the following packages on your system:
 ;; * rustc (Rust Compiler)
@@ -36,13 +36,22 @@
     (setq rust-mode-treesitter-derive t)
 
     ;; format on save
-    (setq rust-format-on-save t)
+    (setq-local rust-format-on-save t)
 
     ;; Prevent #! from chmodding rust files to be executable
-    (remove-hook 'after-save-hook 'executable-make-buffer-file-executable-if-script-p)
+    ;; Expand inherited hooks before removing the callback locally.  A local
+    ;; hook containing t would otherwise still run the global callback.
+    (setq-local after-save-hook
+                (mapcan (lambda (function)
+                          (if (eq function t)
+                              (copy-sequence (default-value 'after-save-hook))
+                            (list function)))
+                        after-save-hook))
+    (remove-hook 'after-save-hook
+                 #'executable-make-buffer-file-executable-if-script-p t)
 
     ;; snippets are required for correct lsp autocompletions
-    (yas-minor-mode)
+    (yas-minor-mode 1)
 
     ;; CamelCase aware editing operations
     (subword-mode +1))

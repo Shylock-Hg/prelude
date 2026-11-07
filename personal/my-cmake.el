@@ -4,9 +4,9 @@
 
 (prelude-require-package 'cmake-ts-mode)
 
-(require 'treesit)
+(require 'my-tree-sitter)
 
-(treesit-install-language-grammar 'cmake)
+(my-tree-sitter-ensure-grammar 'cmake)
 
 ;; OUTSIDE require to install neocmakelsp first
 (defun my/setup-neocmakelsp ()

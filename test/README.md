@@ -158,3 +158,22 @@ The GUI smoke asserts that same commit. To upgrade, change the pin and run
 Existing reader checkouts at another revision produce an actionable error;
 move `vendor/divyaranjan/emacs-reader` aside and restart to clone and build the
 pin. Existing checkouts are preserved rather than reset over local changes.
+
+## Language configuration
+
+The offline language tests check that loading tree-sitter configuration does
+not clone or compile grammars, installed grammars are reused, and missing
+ones are installed individually with retry after a failed build. CMake loads
+this configuration directly instead of relying on Rust being loaded first.
+To rebuild an existing grammar deliberately, use
+`M-x treesit-install-language-grammar`.
+
+Rust setup keeps its save-hook and formatting changes local to the buffer,
+preserving executable-bit handling in other buffers, and enables snippets
+idempotently. Package installation and language servers are stubbed in these
+tests; no compiler or network connection is needed:
+
+```sh
+emacs --batch -Q -L personal -l test/my-language-config-test.el \
+  -f ert-run-tests-batch-and-exit
+```

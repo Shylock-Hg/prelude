@@ -22,7 +22,7 @@
 (add-to-list 'load-path my-tla-ts-mode-dir)
 (require 'tla-ts-mode)
 
-(treesit-install-language-grammar 'tlaplus)
+(my-tree-sitter-ensure-grammar 'tlaplus)
 
 ;; `tla-sany-lsp' is a TLA+ language server built on `tla2sany'.  Install it
 ;; from https://github.com/jimmy-zx/tla-sany-lsp (`pip install -e .'; tested

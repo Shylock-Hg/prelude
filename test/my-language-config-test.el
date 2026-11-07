@@ -1,0 +1,93 @@
+;;; my-language-config-test.el --- Language startup regressions -*- lexical-binding: t -*-
+
+(require 'ert)
+(require 'cl-lib)
+(require 'my-tree-sitter)
+
+(ert-deftest my-tree-sitter-load-does-not-clone-or-build ()
+  (cl-letf (((symbol-function 'my-vendor-install-git)
+             (lambda (&rest _) (ert-fail "Unexpected clone at load time")))
+            ((symbol-function 'treesit-install-language-grammar)
+             (lambda (&rest _) (ert-fail "Unexpected build at load time"))))
+    (load "my-tree-sitter" nil t))
+  (dolist (language '(typst cmake rust tlaplus))
+    (should (assq language treesit-language-source-alist))))
+
+(ert-deftest my-tree-sitter-reuses-installed-grammars ()
+  (cl-letf (((symbol-function 'treesit-language-available-p) (lambda (_) t))
+            ((symbol-function 'my-vendor-install-git)
+             (lambda (&rest _) (ert-fail "Installed grammar should not clone")))
+            ((symbol-function 'treesit-install-language-grammar)
+             (lambda (&rest _) (ert-fail "Installed grammar should not rebuild"))))
+    (dolist (language '(typst cmake rust tlaplus))
+      (my-tree-sitter-ensure-grammar language))))
+
+(ert-deftest my-tree-sitter-installs-only-missing-language-once ()
+  (let (available clones builds)
+    (cl-letf (((symbol-function 'treesit-language-available-p)
+               (lambda (language) (memq language available)))
+              ((symbol-function 'my-vendor-install-git)
+               (lambda (&rest args) (push args clones)))
+              ((symbol-function 'treesit-install-language-grammar)
+               (lambda (language)
+                 (push language builds)
+                 (push language available))))
+      (my-tree-sitter-ensure-grammar 'cmake)
+      (my-tree-sitter-ensure-grammar 'cmake)
+      (should (equal clones '(("github.com" "uyha" "tree-sitter-cmake"))))
+      (should (equal builds '(cmake))))))
+
+(ert-deftest my-tree-sitter-failed-install-can-be-retried ()
+  (let (available (attempts 0))
+    (cl-letf (((symbol-function 'treesit-language-available-p)
+               (lambda (_) available))
+              ((symbol-function 'my-vendor-install-git) (lambda (&rest _) nil))
+              ((symbol-function 'treesit-install-language-grammar)
+               (lambda (_)
+                 (setq attempts (1+ attempts))
+                 (when (= attempts 2) (setq available t)))))
+      (should-error (my-tree-sitter-ensure-grammar 'rust))
+      (my-tree-sitter-ensure-grammar 'rust)
+      (should (= attempts 2)))))
+
+;; Exercise the real Rust configuration without installing packages or starting
+;; language servers.  Keep the fake features scoped to this load.
+(defvar super-save-predicates nil)
+(defvar rust-format-on-save nil)
+(defvar rust-mode-hook nil)
+(defvar flycheck-mode-hook nil)
+(defvar eglot-managed-mode-hook nil)
+(let ((saved-features features))
+  (unwind-protect
+      (progn
+        (mapc #'provide '(prelude-programming prelude-packages my-eglot rust-mode))
+        (cl-letf (((symbol-function 'prelude-require-packages) (lambda (_) nil))
+                  ((symbol-function 'my-tree-sitter-ensure-grammar) (lambda (_) nil)))
+          (load "my-rust" nil t)))
+    (setq features saved-features)))
+
+(ert-deftest my-rust-defaults-preserve-global-save-hook ()
+  (let* ((callback #'executable-make-buffer-file-executable-if-script-p)
+         (after-save-hook (list callback))
+         (rust-format-on-save nil)
+         yas-arguments)
+    (cl-letf (((symbol-function 'yas-minor-mode)
+               (lambda (arg) (push arg yas-arguments))))
+      (dolist (local-hook '(nil t))
+        (with-temp-buffer
+          (when local-hook
+            (add-hook 'after-save-hook #'ignore nil t))
+          (prelude-rust-mode-defaults)
+          (prelude-rust-mode-defaults)
+          (should rust-format-on-save)
+          (should (local-variable-p 'rust-format-on-save))
+          (should-not (memq callback after-save-hook))
+          (should-not (memq t after-save-hook))
+          (when local-hook (should (memq #'ignore after-save-hook)))))
+      (should (equal yas-arguments '(1 1 1 1)))
+      (should (equal after-save-hook (list callback)))
+      (with-temp-buffer
+        (should-not rust-format-on-save)
+        (should (memq callback after-save-hook))))))
+
+;;; my-language-config-test.el ends here

@@ -45,3 +45,7 @@ PRELUDE_GOTO_CHG_DIR="$goto_chg_dir" \
 emacs --batch -Q -L personal -L "$(dependency_path gt)" -L "$(dependency_path pdd)" \
   -l test/my-translate-test.el \
   -f ert-run-tests-batch-and-exit
+
+emacs --batch -Q -L personal \
+  -l test/my-language-config-test.el \
+  -f ert-run-tests-batch-and-exit
