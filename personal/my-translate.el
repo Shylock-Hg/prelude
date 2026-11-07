@@ -14,6 +14,25 @@
 (prelude-require-package 'posframe)
 (require 'gt)
 
+;; Prefer the active theme over gt's default black popup.  These nil values
+;; also let posframe inherit the frame colors when no concrete color is set.
+(setq gt-pop-posframe-forecolor nil
+      gt-pop-posframe-backcolor nil)
+
+(defun my-translate--theme-color (attribute)
+  "Return ATTRIBUTE of the default face for the current frame.
+Return nil when the face value is not a concrete color."
+  (let ((value (face-attribute 'default attribute (selected-frame) t)))
+    (unless (or (not (stringp value))
+                (string-prefix-p "unspecified" value))
+      value)))
+
+(defun my-translate--posframe-render ()
+  "Return a gt popup renderer using the current theme's default colors."
+  (gt-posframe-pop-render
+   :forecolor (my-translate--theme-color :foreground)
+   :backcolor (my-translate--theme-color :background)))
+
 (defun my-translate--selected (source target)
   "Translate selected text from SOURCE to TARGET in a posframe childframe."
   (let ((text (my--selected-text)))
@@ -26,7 +45,7 @@
                        :langs (list nil (list source target))
                        :prompt nil :pick nil)
       :engines (gt-google-engine)
-      :render (gt-posframe-pop-render)))))
+      :render (my-translate--posframe-render)))))
 
 (defun my/translate-en2zh-selected ()
   "Translate selected English text to Chinese in a posframe childframe.

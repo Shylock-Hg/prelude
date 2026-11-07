@@ -136,15 +136,16 @@ startup. Select text, then run `M-x my/translate-en2zh-selected` or
 `M-x my/translate-zh2en-selected`. Both commands also accept the last Evil
 visual selection when invoked through the extended-command minibuffer.
 Results appear in a gt popup childframe at point, so no new buffer or window
-is opened; the source buffer stays intact and `q` closes the childframe.
+is opened; the childframe uses the active theme's default foreground and
+background colors, the source buffer stays intact and `q` closes the childframe.
 Translation uses Google Translate and requires network access, with no API key.
 Missing or whitespace-only selections produce a user error.
 
 The regression tests use real gt taker, engine and render objects, but intercept
 `gt-start` before network requests. They check both directions, region and Evil
-marker selections, the popup posframe renderer, preservation of selected text,
-and invalid selections. `test/run-unit-tests.sh` runs them using the pinned gt
-and pdd sources.
+marker selections, the popup posframe renderer and its theme colors,
+preservation of selected text, and invalid selections.
+`test/run-unit-tests.sh` runs them using the pinned gt and pdd sources.
 For a standalone run with gt and its pdd dependency on the load path:
 
 ```sh

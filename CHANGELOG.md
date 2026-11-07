@@ -8,7 +8,7 @@
 
 - [#48](https://forgejo.shylockhg.me/shylock/prelude/issues/48): Add gt.el support with `my/translate-en2zh-selected` and `my/translate-zh2en-selected` for region and Evil visual selections.
 
-- [#62](https://forgejo.shylockhg.me/shylock/prelude/issues/62): Show gt.el translation results in a popup childframe via `posframe` instead of opening a new buffer.
+- [#62](https://forgejo.shylockhg.me/shylock/prelude/issues/62): Show gt.el translation results in a popup childframe via `posframe` instead of opening a new buffer, using colors from the active theme.
 
 - [#45](https://forgejo.shylockhg.me/shylock/prelude/issues/45): Resolve selected relative file paths against the live Eat shell directory on Linux, with buffer directory tracking as a fallback.
 - [#43](https://forgejo.shylockhg.me/shylock/prelude/issues/43): Add TLA+ support with `tla-ts-mode` tree-sitter highlighting and Eglot LSP integration.

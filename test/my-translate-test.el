@@ -13,7 +13,34 @@
 
 (ert-deftest my-translate-requires-posframe ()
   (should (memq 'gt my-translate-test-required-packages))
-  (should (memq 'posframe my-translate-test-required-packages)))
+  (should (memq 'posframe my-translate-test-required-packages))
+  (should-not gt-pop-posframe-forecolor)
+  (should-not gt-pop-posframe-backcolor))
+
+(ert-deftest my-translate-posframe-follows-theme-colors ()
+  (let ((foreground "#123456")
+        (background "#abcdef"))
+    (cl-letf (((symbol-function 'face-attribute)
+               (lambda (face attribute &optional _frame _inherit)
+                 (should (eq face 'default))
+                 (pcase attribute
+                   (:foreground foreground)
+                   (:background background)
+                   (_ (ert-fail (format "Unexpected face attribute: %s" attribute)))))))
+      (let ((render (my-translate--posframe-render)))
+        (should (eq (eieio-object-class render) 'gt-posframe-pop-render))
+        (should (equal (oref render forecolor) foreground))
+        (should (equal (oref render backcolor) background))))))
+
+(ert-deftest my-translate-posframe-ignores-unspecified-face-colors ()
+  (cl-letf (((symbol-function 'face-attribute)
+             (lambda (_face attribute &optional _frame _inherit)
+               (pcase attribute
+                 (:foreground "unspecified-fg")
+                 (:background "unspecified-bg")))))
+    (let ((render (my-translate--posframe-render)))
+      (should-not (oref render forecolor))
+      (should-not (oref render backcolor)))))
 
 (defvar evil-visual-beginning nil)
 (defvar evil-visual-end nil)
