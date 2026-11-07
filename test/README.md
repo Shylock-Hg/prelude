@@ -131,18 +131,20 @@ the implementation itself does not depend on Evil. Verified with GNU Emacs
 
 ## Translation
 
-`personal/my-translate.el` installs the MELPA package `gt` at startup. Select
-text, then run `M-x my/translate-en2zh-selected` or
+`personal/my-translate.el` installs the MELPA packages `gt` and `posframe` at
+startup. Select text, then run `M-x my/translate-en2zh-selected` or
 `M-x my/translate-zh2en-selected`. Both commands also accept the last Evil
 visual selection when invoked through the extended-command minibuffer.
-Results appear in a separate gt buffer; the source buffer stays intact.
+Results appear in a gt popup childframe at point, so no new buffer or window
+is opened; the source buffer stays intact and `q` closes the childframe.
 Translation uses Google Translate and requires network access, with no API key.
 Missing or whitespace-only selections produce a user error.
 
 The regression tests use real gt taker, engine and render objects, but intercept
 `gt-start` before network requests. They check both directions, region and Evil
-marker selections, preservation of selected text, and invalid selections.
-`test/run-unit-tests.sh` runs them using the pinned gt and pdd sources.
+marker selections, the popup posframe renderer, preservation of selected text,
+and invalid selections. `test/run-unit-tests.sh` runs them using the pinned gt
+and pdd sources.
 For a standalone run with gt and its pdd dependency on the load path:
 
 ```sh

@@ -4,10 +4,16 @@
 (require 'cl-lib)
 
 ;; Load real gt components without installing packages in the test process.
+(defvar my-translate-test-required-packages nil)
 (unless (featurep 'prelude-packages)
   (provide 'prelude-packages))
-(cl-letf (((symbol-function 'prelude-require-package) #'ignore))
+(cl-letf (((symbol-function 'prelude-require-package)
+           (lambda (package) (push package my-translate-test-required-packages))))
   (require 'my-translate))
+
+(ert-deftest my-translate-requires-posframe ()
+  (should (memq 'gt my-translate-test-required-packages))
+  (should (memq 'posframe my-translate-test-required-packages)))
 
 (defvar evil-visual-beginning nil)
 (defvar evil-visual-end nil)
@@ -37,8 +43,8 @@
                        (should (equal (oref translator target) (cdr case)))
                        (should (object-of-class-p (oref translator engines)
                                                  'gt-google-engine))
-                       (should (object-of-class-p (oref translator render)
-                                                 'gt-buffer-render)))))
+                       (should (eq (eieio-object-class (oref translator render))
+                                   'gt-posframe-pop-render)))))
             (call-interactively (car case)))
           (should (equal (buffer-string) "prefix Hello 世界 suffix")))))))
 

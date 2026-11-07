@@ -3,7 +3,7 @@
 ;;; Commentary:
 
 ;; Translate the active region or last Evil visual selection with Google
-;; Translate, displaying the result in a separate gt buffer.
+;; Translate, displaying the result in a childframe via posframe.
 
 ;;; Code:
 
@@ -11,10 +11,11 @@
 (require 'my-utils)
 
 (prelude-require-package 'gt)
+(prelude-require-package 'posframe)
 (require 'gt)
 
 (defun my-translate--selected (source target)
-  "Translate selected text from SOURCE to TARGET in a gt buffer."
+  "Translate selected text from SOURCE to TARGET in a posframe childframe."
   (let ((text (my--selected-text)))
     (unless (and text (not (string-blank-p text)))
       (user-error "Select text to translate first"))
@@ -25,17 +26,17 @@
                        :langs (list nil (list source target))
                        :prompt nil :pick nil)
       :engines (gt-google-engine)
-      :render (gt-buffer-render)))))
+      :render (gt-posframe-pop-render)))))
 
 (defun my/translate-en2zh-selected ()
-  "Translate selected English text to Chinese in a separate buffer.
+  "Translate selected English text to Chinese in a posframe childframe.
 Use the active region or last Evil visual selection, including when
 invoked through the extended-command minibuffer."
   (interactive)
   (my-translate--selected 'en 'zh))
 
 (defun my/translate-zh2en-selected ()
-  "Translate selected Chinese text to English in a separate buffer.
+  "Translate selected Chinese text to English in a posframe childframe.
 Use the active region or last Evil visual selection, including when
 invoked through the extended-command minibuffer."
   (interactive)
