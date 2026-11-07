@@ -7,6 +7,7 @@ nav:
 - Installation: installation.md
 - Usage: usage.md
 - Configuration: configuration.md
+- Pilish: pilish.md
 - Modules:
     - Overview: modules/index.md
     - Company: modules/company.md

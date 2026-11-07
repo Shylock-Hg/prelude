@@ -59,3 +59,7 @@ run_theme_test my-theme-test-explicit-ef-load-works
 emacs --batch -Q -L personal \
   -l test/my-language-config-test.el \
   -f ert-run-tests-batch-and-exit
+
+emacs --batch -Q -L personal \
+  -l test/my-pilish-test.el \
+  -f ert-run-tests-batch-and-exit

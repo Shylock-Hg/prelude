@@ -34,6 +34,7 @@
 (require 'my-github-copilot)
 (require 'my-gptel)
 (require 'my-agent-shell)
+(require 'my-pilish)
 (require 'my-gptel-agent)
 (require 'my-gptel-autocomplete)
 

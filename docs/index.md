@@ -111,6 +111,13 @@ On top of this - basic support for many other programming languages
 will be auto-installed when needed (e.g. the first time you open a
 source file for some language).
 
+## Personal AI tools
+
+The personal configuration includes [Pilish](pilish.md) support for using
+the Pi coding agent inside Emacs, installing the Pi CLI automatically when
+missing. The [Pilish setup guide](pilish.md) covers authentication and
+first-run instructions.
+
 ## Philosophy
 
 Prelude's philosophy is quite simple:

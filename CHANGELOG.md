@@ -6,6 +6,8 @@
 
 ### New features
 
+- [#66](https://forgejo.shylockhg.me/shylock/prelude/issues/66): Add lazy Pilish support and the `M-x pi` alias in the personal configuration, install the Pi CLI automatically when missing, and document [CLI setup](docs/pilish.md).
+
 - [#48](https://forgejo.shylockhg.me/shylock/prelude/issues/48): Add gt.el support with `my/translate-en2zh-selected` and `my/translate-zh2en-selected` for region and Evil visual selections.
 
 - [#62](https://forgejo.shylockhg.me/shylock/prelude/issues/62): Show gt.el translation results in a popup childframe via `posframe` instead of opening a new buffer, using colors from the active theme with a subtle contrasting tint.
