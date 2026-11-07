@@ -64,4 +64,8 @@
 ;; require by evil-collection
 (setq evil-want-keybinding nil)
 
+;; Modus Operandi is the active default theme.  The previous Ef theme
+;; configuration is retained in `my-theme-ef-day.el.disabled' so that the
+;; automatic preload scan ignores it.  Rename it to `my-theme-ef-day.el' (or
+;; load it explicitly) to opt in to the old Ef setup.
 (require 'my-theme-modus-operandi)

@@ -46,6 +46,16 @@ emacs --batch -Q -L personal -L "$(dependency_path gt)" -L "$(dependency_path pd
   -l test/my-translate-test.el \
   -f ert-run-tests-batch-and-exit
 
+run_theme_test() {
+  emacs --batch -Q -L core -L personal -L personal/preload \
+    -L "$(dependency_path modus-themes)" \
+    -L "$(dependency_path ef-themes)" \
+    -l test/my-theme-test.el \
+    --eval "(ert-run-tests-batch-and-exit '$1)"
+}
+run_theme_test my-theme-test-auto-preload-keeps-modus-only
+run_theme_test my-theme-test-explicit-ef-load-works
+
 emacs --batch -Q -L personal \
   -l test/my-language-config-test.el \
   -f ert-run-tests-batch-and-exit
