@@ -9,6 +9,8 @@
 
 (require 'prelude-packages)
 (require 'my-utils)
+(require 'cl-lib)
+(require 'color)
 
 (prelude-require-package 'gt)
 (prelude-require-package 'posframe)
@@ -19,6 +21,9 @@
 (setq gt-pop-posframe-forecolor nil
       gt-pop-posframe-backcolor nil)
 
+(defconst my-translate--popup-background-tint 0.1
+  "Fraction of the theme foreground mixed into the popup background.")
+
 (defun my-translate--theme-color (attribute)
   "Return ATTRIBUTE of the default face for the current frame.
 Return nil when the face value is not a concrete color."
@@ -27,11 +32,31 @@ Return nil when the face value is not a concrete color."
                 (string-prefix-p "unspecified" value))
       value)))
 
+(defun my-translate--mix-color (base tint amount)
+  "Return BASE mixed with TINT by AMOUNT as a 24-bit hex color.
+Return nil when either color is not a concrete color."
+  (let ((base-rgb (and base (color-name-to-rgb base)))
+        (tint-rgb (and tint (color-name-to-rgb tint))))
+    (when (and base-rgb tint-rgb)
+      (let ((mixed (cl-mapcar (lambda (base-channel tint-channel)
+                                (+ (* base-channel (- 1 amount))
+                                   (* tint-channel amount)))
+                              base-rgb tint-rgb)))
+        (apply #'color-rgb-to-hex (append mixed '(2)))))))
+
+(defun my-translate--popup-background (foreground background)
+  "Tint BACKGROUND slightly toward FOREGROUND for the popup."
+  (or (my-translate--mix-color background foreground
+                               my-translate--popup-background-tint)
+      background))
+
 (defun my-translate--posframe-render ()
-  "Return a gt popup renderer using the current theme's default colors."
-  (gt-posframe-pop-render
-   :forecolor (my-translate--theme-color :foreground)
-   :backcolor (my-translate--theme-color :background)))
+  "Return a gt popup renderer using the current theme's colors."
+  (let* ((forecolor (my-translate--theme-color :foreground))
+         (backcolor (my-translate--theme-color :background)))
+    (gt-posframe-pop-render
+     :forecolor forecolor
+     :backcolor (my-translate--popup-background forecolor backcolor))))
 
 (defun my-translate--selected (source target)
   "Translate selected text from SOURCE to TARGET in a posframe childframe."
