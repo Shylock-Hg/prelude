@@ -47,6 +47,9 @@
 
 ### Bugs fixed
 
+- Resolve Company child-frame keystrokes in the personal configuration after
+  command redirection, preventing `u` from invoking Evil undo while inserting text.
+
 - [#52](https://forgejo.shylockhg.me/shylock/prelude/issues/52): Enable shell integration automatically for Eat Bash and Zsh sessions, preserving user startup files, and make forward deletion and append-to-input-end work with Zsh's default editor.
 
 - [#52](https://forgejo.shylockhg.me/shylock/prelude/issues/52): Synchronize Evil insertion and characterwise deletion with the shell cursor in Eat buffers, including consecutive edits, wide characters, prompt boundary protection through shell integration, and delete-register semantics.

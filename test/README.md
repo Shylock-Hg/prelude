@@ -1,5 +1,28 @@
 # Personal configuration regression tests
 
+## Company child-frame key dispatch
+
+With Company (including `company-childframe`) and Evil installed,
+run the popup command regression tests from the repository root:
+
+```sh
+emacs --batch -Q \
+  --eval '(progn (require (quote package)) (package-initialize))' \
+  -L personal -l test/my-company-test.el \
+  -f ert-run-tests-batch-and-exit
+```
+
+The workaround lives in `personal/my-company.el`, which Prelude loads
+through `personal/my-modules.el`. The startup regression loads that entrypoint
+with unrelated modules stubbed, checks that Company remains unloaded, then
+loads real `company-childframe` and verifies the advice is installed.
+The dispatch tests use the real Company redirection hook and Evil keymaps,
+with two windows standing in for the source and popup frames. They check
+insert-mode typing, normal-mode undo, and popup scrolling without requiring
+a display.
+
+## Complete suite
+
 Run the complete unit suite from a clean checkout:
 
 ```sh
