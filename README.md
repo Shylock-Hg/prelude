@@ -1,9 +1,8 @@
+# Emacs Prelude
+
 [![License GPL 3][badge-license]](http://www.gnu.org/licenses/gpl-3.0.txt)
 [![CI](https://github.com/bbatsov/prelude/workflows/CI/badge.svg)](https://github.com/bbatsov/prelude/actions/workflows/ci.yml)
 [![Patreon](https://img.shields.io/badge/patreon-donate-orange.svg)](https://www.patreon.com/bbatsov)
-
-Emacs Prelude
-=============
 
 Prelude is an Emacs distribution that aims to enhance the default
 Emacs experience.  Prelude alters a lot of the default settings,
@@ -105,7 +104,8 @@ In practice this translates to the following:
 Remember that the ultimate goal of every Emacs user is to create an Emacs setup that reflects their own experience, needs, goals and ideas. Just like Lisp,
 Emacs is nothing but a raw building material for the perfect editing experience.
 
-More installation options are discussed [here](https://prelude.emacsredux.com/en/latest/installation/).
+More installation options are discussed in the
+[installation guide](https://prelude.emacsredux.com/en/latest/installation/).
 
 ## User Manual
 

@@ -9,3 +9,5 @@ config:
     style: ordered
   # Allow inline HTML
   MD033: false
+  # Long URLs and shell examples are clearer on a single line.
+  MD013: false
