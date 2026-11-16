@@ -16,6 +16,9 @@
 (prelude-require-package 'eat)
 (require 'eat)
 
+;; Eat measures scrollback in characters, not bytes or lines.
+(setq eat-term-scrollback-size (* 128 1024 1024))
+
 ;; Eat 0.9.4 can accumulate duplicate prompt annotation overlays and its
 ;; cleanup timer can fail on deleted overlays, making redisplay very slow.
 ;; Keep shell integration, but omit the decorative prompt status marks.
