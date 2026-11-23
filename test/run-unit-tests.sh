@@ -53,9 +53,9 @@ run_theme_test() {
     -l test/my-theme-test.el \
     --eval "(ert-run-tests-batch-and-exit '$1)"
 }
-run_theme_test my-theme-test-startup-enables-modus-only
-run_theme_test my-theme-test-startup-honors-theme-override
-run_theme_test my-theme-test-explicit-ef-load-works
+run_theme_test my-theme-test-startup-enables-ef-melissa-light
+run_theme_test my-theme-test-startup-honors-nil-theme-override
+run_theme_test my-theme-test-startup-honors-named-theme-override
 
 emacs --batch -Q -L personal \
   -l test/my-language-config-test.el \

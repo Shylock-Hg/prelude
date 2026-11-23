@@ -2,8 +2,7 @@
 
 ;;; Commentary:
 
-;; Exercise the theme through Prelude's startup entrypoint and check optional
-;; Ef loading separately.
+;; Exercise the default theme and overrides through Prelude's startup entrypoint.
 
 ;;; Code:
 
@@ -21,9 +20,9 @@
   (expand-file-name "personal/preload" my-theme-test--repo-root)
   "Prelude's personal preload directory.")
 
-(defconst my-theme-test--ef-module
-  (expand-file-name "personal/my-theme-ef-day.el.disabled" my-theme-test--repo-root)
-  "Retained Ef configuration for explicit loading.")
+(defconst my-theme-test--modus-module
+  (expand-file-name "personal/my-theme-modus.el.disabled" my-theme-test--repo-root)
+  "Retained Modus configuration outside the automatic preload path.")
 
 ;; Keep the unrelated preload side effects isolated from these tests.
 (defvar compile-angel-excluded-files nil)
@@ -58,6 +57,7 @@
                      (pcase feature
                        ('prelude-packages
                         (should-not (featurep 'my-theme))
+                        (should-not (featurep 'ef-themes))
                         (should-not custom-enabled-themes)
                         feature)
                        ('prelude-core
@@ -82,26 +82,22 @@
   (and (boundp 'ef-themes-take-over-modus-themes-mode)
        (symbol-value 'ef-themes-take-over-modus-themes-mode)))
 
-(defun my-theme-test--modus-theme-p (theme)
-  "Return non-nil when THEME belongs to the Modus collection."
-  (memq theme modus-themes-items))
-
 (defun my-theme-test--ef-theme-p (theme)
   "Return non-nil when THEME belongs to the Ef collection."
   (and (featurep 'ef-themes) (memq theme ef-themes-items)))
 
-(ert-deftest my-theme-test-startup-enables-modus-only ()
+(ert-deftest my-theme-test-startup-enables-ef-melissa-light ()
   (my-theme-test--load-auto-startup)
   (should (featurep 'my-theme))
   (should-not (directory-files-recursively my-theme-test--preload-dir
                                            "^my-theme-.*\\.el\\'"))
-  (should (file-exists-p my-theme-test--ef-module))
-  (should (equal custom-enabled-themes '(modus-operandi)))
+  (should (file-exists-p my-theme-test--modus-module))
+  (should (equal custom-enabled-themes '(ef-melissa-light)))
+  (should (featurep 'ef-themes))
   (should-not (my-theme-test--ef-takeover-p))
-  (should-not (featurep 'ef-themes))
-  (should (eq (key-binding (kbd "<f5>")) 'modus-themes-rotate))
-  (should (eq (key-binding (kbd "C-<f5>")) 'modus-themes-select))
-  (should (eq (key-binding (kbd "M-<f5>")) 'modus-themes-load-random))
+  (should (eq (key-binding (kbd "<f5>")) 'ef-themes-rotate))
+  (should (eq (key-binding (kbd "C-<f5>")) 'ef-themes-select))
+  (should (eq (key-binding (kbd "M-<f5>")) 'ef-themes-load-random))
   ;; Batch frames report monochrome. Match color face specs while checking
   ;; that a face declared after startup receives the active theme's settings.
   (should-not (facep 'company-tooltip))
@@ -114,66 +110,43 @@
           (should (eq (face-attribute 'company-tooltip :inherit)
                       'modus-themes-fixed-pitch)))
       (set-frame-parameter nil 'display-type display-type)))
-  (let ((themes (modus-themes-get-themes)))
-    (should (memq 'modus-operandi themes))
-    (should (seq-every-p #'my-theme-test--modus-theme-p themes))
-    (should-not (seq-some #'my-theme-test--ef-theme-p themes)))
-  ;; <f5> rotates through the Modus collection, not the Ef collection.
+  ;; <f5> rotates through the Ef collection.
   (let (loaded)
     (cl-letf (((symbol-function 'modus-themes-load-theme)
                (lambda (theme &optional _hook) (setq loaded theme))))
       (call-interactively (key-binding (kbd "<f5>")))
-      (should (my-theme-test--modus-theme-p loaded))
-      (should-not (my-theme-test--ef-theme-p loaded))))
-  ;; C-<f5> prompts with the Modus collection.
+      (should (my-theme-test--ef-theme-p loaded))))
+  ;; C-<f5> prompts with the Ef collection.
   (let (loaded prompted)
     (cl-letf (((symbol-function 'modus-themes-select-prompt)
                (lambda (&rest _)
                  (setq prompted (modus-themes-get-themes))
-                 'modus-vivendi))
+                 'ef-dark))
               ((symbol-function 'modus-themes-load-theme)
                (lambda (theme &optional _hook) (setq loaded theme))))
       (call-interactively (key-binding (kbd "C-<f5>")))
-      (should (eq loaded 'modus-vivendi))
-      (should (memq 'modus-operandi prompted))
-      (should (seq-every-p #'my-theme-test--modus-theme-p prompted))
-      (should-not (seq-some #'my-theme-test--ef-theme-p prompted))))
-  ;; M-<f5> chooses at random from the Modus collection.
+      (should (eq loaded 'ef-dark))
+      (should (memq 'ef-dark prompted))
+      (should (memq 'ef-melissa-light prompted))
+      (should (seq-every-p #'my-theme-test--ef-theme-p prompted))))
+  ;; M-<f5> chooses at random from the Ef collection.
   (let (loaded)
     (cl-letf (((symbol-function 'modus-themes-load-theme)
                (lambda (theme &optional _hook) (setq loaded theme)))
               ((symbol-function 'random) (lambda (_limit) 0)))
       (call-interactively (key-binding (kbd "M-<f5>")))
-      (should (my-theme-test--modus-theme-p loaded))
-      (should-not (my-theme-test--ef-theme-p loaded)))))
+      (should (my-theme-test--ef-theme-p loaded)))))
 
-(ert-deftest my-theme-test-startup-honors-theme-override ()
+(ert-deftest my-theme-test-startup-honors-nil-theme-override ()
   (let ((prelude-theme nil))
     (my-theme-test--load-auto-startup)
     (should (featurep 'my-theme))
     (should-not custom-enabled-themes)))
 
-(ert-deftest my-theme-test-explicit-ef-load-works ()
-  (my-theme-test--configure)
-  ;; Installed packages autoload this mode before the retained module's :init
-  ;; block runs, so mimic that autoload in the isolated test environment.
-  (autoload 'ef-themes-take-over-modus-themes-mode "ef-themes" nil t)
-  (load-file my-theme-test--ef-module)
-  (should (featurep 'my-theme-ef-day))
-  (should (featurep 'ef-themes))
-  (should (my-theme-test--ef-takeover-p))
-  (should (equal custom-enabled-themes '(ef-melissa-light)))
-  (should (eq (key-binding (kbd "<f5>")) 'modus-themes-rotate))
-  (should (eq (key-binding (kbd "C-<f5>")) 'modus-themes-select))
-  (should (eq (key-binding (kbd "M-<f5>")) 'modus-themes-load-random))
-  (let ((themes (modus-themes-get-themes)))
-    (should (memq 'ef-melissa-light themes))
-    (should (seq-every-p #'my-theme-test--ef-theme-p themes))
-    (should-not (seq-some #'my-theme-test--modus-theme-p themes)))
-  (let (loaded)
-    (cl-letf (((symbol-function 'modus-themes-load-theme)
-               (lambda (theme &optional _hook) (setq loaded theme))))
-      (call-interactively (key-binding (kbd "<f5>")))
-      (should (my-theme-test--ef-theme-p loaded)))))
+(ert-deftest my-theme-test-startup-honors-named-theme-override ()
+  (let ((prelude-theme 'modus-vivendi))
+    (my-theme-test--load-auto-startup)
+    (should (featurep 'my-theme))
+    (should (equal custom-enabled-themes '(modus-vivendi)))))
 
 ;;; my-theme-test.el ends here
