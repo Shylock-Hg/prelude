@@ -67,3 +67,6 @@ emacs --batch -Q -L personal \
 
 emacs --batch -Q -l test/my-startup-profile-test.el \
   -f ert-run-tests-batch-and-exit
+
+emacs --batch -Q -l test/my-gptel-test.el \
+  -f ert-run-tests-batch-and-exit

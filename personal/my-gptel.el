@@ -4,6 +4,19 @@
 
 (prelude-require-package 'gptel)
 
+;; An installed gptel can be on `load-path' with its autoloads missing.
+(let* ((descriptor (cadr (assq 'gptel package-alist)))
+       (directory (and descriptor (package-desc-dir descriptor)))
+       (autoloads (and directory
+                       (locate-library "gptel-autoloads" nil (list directory)))))
+  (when (and directory
+             (not (and autoloads (locate-library "gptel")))
+             (file-readable-p (expand-file-name "gptel.el" directory)))
+    (unless autoloads
+      (package-generate-autoloads 'gptel directory))
+    ;; Loading the autoloads adds the package directory to `load-path'.
+    (load (expand-file-name "gptel-autoloads" directory) nil 'nomessage)))
+
 (use-package gptel
   :ensure t
   :demand t
