@@ -114,6 +114,8 @@ by Prelude.")
 
 ;; load the core stuff
 (require 'prelude-packages)
+;; Let the personal theme supply a default before the UI enables it.
+(require 'my-theme nil t)
 (require 'prelude-custom)  ;; Needs to be loaded before core, editor and ui
 (require 'prelude-ui)
 (require 'prelude-core)

@@ -53,7 +53,8 @@ run_theme_test() {
     -l test/my-theme-test.el \
     --eval "(ert-run-tests-batch-and-exit '$1)"
 }
-run_theme_test my-theme-test-auto-preload-keeps-modus-only
+run_theme_test my-theme-test-startup-enables-modus-only
+run_theme_test my-theme-test-startup-honors-theme-override
 run_theme_test my-theme-test-explicit-ef-load-works
 
 emacs --batch -Q -L personal \

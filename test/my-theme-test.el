@@ -1,7 +1,11 @@
 ;;; my-theme-test.el --- Theme startup regressions -*- lexical-binding: t -*-
 
-;; Follow the actual recursive personal preload and UI initialization so the
-;; optional Ef configuration cannot silently rejoin the default startup path.
+;;; Commentary:
+
+;; Exercise the theme through Prelude's startup entrypoint and check optional
+;; Ef loading separately.
+
+;;; Code:
 
 (require 'ert)
 (require 'cl-lib)
@@ -18,17 +22,14 @@
   "Prelude's personal preload directory.")
 
 (defconst my-theme-test--ef-module
-  (expand-file-name "my-theme-ef-day.el.disabled" my-theme-test--preload-dir)
-  "Retained Ef configuration that must remain outside automatic preloading.")
+  (expand-file-name "personal/my-theme-ef-day.el.disabled" my-theme-test--repo-root)
+  "Retained Ef configuration for explicit loading.")
 
 ;; Keep the unrelated preload side effects isolated from these tests.
 (defvar compile-angel-excluded-files nil)
-(defun compile-angel-on-load-mode (&optional _argument) nil)
+(defun compile-angel-on-load-mode (&optional _argument)
+  "Stub compile-angel's global mode for isolated startup.")
 (provide 'compile-angel)
-
-(defun my-theme-test--preload-files ()
-  "Return the files selected by Prelude's real personal preload loader."
-  (directory-files-recursively my-theme-test--preload-dir "^[^#\.].*el$"))
 
 (defun my-theme-test--configure ()
   "Prepare a minimal startup environment for the theme tests."
@@ -41,12 +42,40 @@
   ;; Isolate package installation from the preload itself.
   (fset 'package-initialize (lambda (&rest _) nil)))
 
+(defvar prelude-theme)
+(defvar prelude-vendor-dir)
+
 (defun my-theme-test--load-auto-startup ()
-  "Load the preload files and UI initialization as ordinary startup does."
+  "Run Prelude startup with unrelated packages and modules stubbed."
   (my-theme-test--configure)
-  (mapc #'load (my-theme-test--preload-files))
-  (require 'prelude-custom)
-  (require 'prelude-ui))
+  (let* ((user-emacs-directory (make-temp-file "my-theme-test-" t))
+         (prelude-vendor-dir user-emacs-directory)
+         (real-require (symbol-function 'require))
+         (real-load (symbol-function 'load)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'require)
+                   (lambda (feature &rest args)
+                     (pcase feature
+                       ('prelude-packages
+                        (should-not (featurep 'my-theme))
+                        (should-not custom-enabled-themes)
+                        feature)
+                       ('prelude-core
+                        (should (equal custom-enabled-themes
+                                       (and prelude-theme (list prelude-theme))))
+                        feature)
+                       ((or 'prelude-mode 'prelude-editor 'prelude-global-keybindings
+                            'prelude-linux 'prelude-macos 'prelude-wsl 'prelude-windows)
+                        feature)
+                       (_ (apply real-require feature args)))))
+                  ((symbol-function 'load)
+                   (lambda (file &rest args)
+                     (unless (member (file-name-nondirectory file)
+                                     '("prelude-modules.el" "my-modules.el"))
+                       (apply real-load file args))))
+                  ((symbol-function 'prelude-eval-after-init) #'ignore))
+          (load (expand-file-name "init.el" my-theme-test--repo-root)))
+      (delete-directory user-emacs-directory t))))
 
 (defun my-theme-test--ef-takeover-p ()
   "Return non-nil when the Ef takeover mode is enabled."
@@ -61,10 +90,11 @@
   "Return non-nil when THEME belongs to the Ef collection."
   (and (featurep 'ef-themes) (memq theme ef-themes-items)))
 
-(ert-deftest my-theme-test-auto-preload-keeps-modus-only ()
+(ert-deftest my-theme-test-startup-enables-modus-only ()
   (my-theme-test--load-auto-startup)
-  (should-not (member my-theme-test--ef-module
-                      (my-theme-test--preload-files)))
+  (should (featurep 'my-theme))
+  (should-not (directory-files-recursively my-theme-test--preload-dir
+                                           "^my-theme-.*\\.el\\'"))
   (should (file-exists-p my-theme-test--ef-module))
   (should (equal custom-enabled-themes '(modus-operandi)))
   (should-not (my-theme-test--ef-takeover-p))
@@ -72,6 +102,18 @@
   (should (eq (key-binding (kbd "<f5>")) 'modus-themes-rotate))
   (should (eq (key-binding (kbd "C-<f5>")) 'modus-themes-select))
   (should (eq (key-binding (kbd "M-<f5>")) 'modus-themes-load-random))
+  ;; Batch frames report monochrome. Match color face specs while checking
+  ;; that a face declared after startup receives the active theme's settings.
+  (should-not (facep 'company-tooltip))
+  (let ((display-type (frame-parameter nil 'display-type)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'display-color-cells) (lambda (&rest _) 256)))
+          (set-frame-parameter nil 'display-type 'color)
+          (defface company-tooltip '((t :inherit default))
+            "Stand-in for Company's late face declaration.")
+          (should (eq (face-attribute 'company-tooltip :inherit)
+                      'modus-themes-fixed-pitch)))
+      (set-frame-parameter nil 'display-type display-type)))
   (let ((themes (modus-themes-get-themes)))
     (should (memq 'modus-operandi themes))
     (should (seq-every-p #'my-theme-test--modus-theme-p themes))
@@ -104,6 +146,12 @@
       (call-interactively (key-binding (kbd "M-<f5>")))
       (should (my-theme-test--modus-theme-p loaded))
       (should-not (my-theme-test--ef-theme-p loaded)))))
+
+(ert-deftest my-theme-test-startup-honors-theme-override ()
+  (let ((prelude-theme nil))
+    (my-theme-test--load-auto-startup)
+    (should (featurep 'my-theme))
+    (should-not custom-enabled-themes)))
 
 (ert-deftest my-theme-test-explicit-ef-load-works ()
   (my-theme-test--configure)
